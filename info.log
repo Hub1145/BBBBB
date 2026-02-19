@@ -1,0 +1,257 @@
+2026-02-19 11:22:50,834 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.2.0.2:5000
+2026-02-19 11:22:50,842 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-19 11:22:54,460 - INFO - Product Info Updated for ETH-USDT-SWAP: ContractSize=0.1, LotSz=0.01
+2026-02-19 11:22:58,475 - ERROR - Indicator fail: Python int too large to convert to C long
+2026-02-19 11:22:58,487 - INFO - Bot initialized and started (Mode: Passive)
+2026-02-19 11:23:00,158 - INFO - Websocket connected
+2026-02-19 11:23:00,162 - INFO - Websocket connected
+2026-02-19 11:23:00,549 - INFO - WebSocket Login Successful.
+2026-02-19 11:23:05,805 - INFO - Closing short position: 279.48 contracts (posSide: net, tdMode: isolated)
+2026-02-19 11:23:05,808 - INFO - Placing Market buy order for 279.48 ETH-USDT-SWAP (tdMode: isolated, posSide: net)
+2026-02-19 11:23:10,498 - INFO - Trade Closed (Order 3321693721850433536) - Realized PnL: 135.6605, Fee: -27.8614, Net: 107.7991
+2026-02-19 11:23:11,295 - INFO - Position Detected Closed: SHORT
+2026-02-19 11:23:16,511 - INFO - Baseline initialized: Long=0.0, Short=0.0 contracts
+2026-02-19 11:23:18,448 - ERROR - Indicator fail: Python int too large to convert to C long
+2026-02-19 11:35:06,984 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.2.0.2:5000
+2026-02-19 11:35:06,988 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-19 11:35:11,039 - INFO - Product Info Updated for ETH-USDT-SWAP: ContractSize=0.1, LotSz=0.01
+2026-02-19 11:35:15,287 - INFO - Bot initialized and started (Mode: Passive)
+2026-02-19 11:35:16,926 - INFO - Websocket connected
+2026-02-19 11:35:17,100 - INFO - Websocket connected
+2026-02-19 11:35:17,470 - INFO - WebSocket Login Successful.
+2026-02-19 11:35:26,124 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:26] "[32mGET / HTTP/1.1[0m" 302 -
+2026-02-19 11:35:26,404 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:26] "GET /login?next=http://localhost:5000/ HTTP/1.1" 200 -
+2026-02-19 11:35:26,985 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:26] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+2026-02-19 11:35:29,481 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:29] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-19 11:35:29,573 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:29] "GET / HTTP/1.1" 200 -
+2026-02-19 11:35:29,903 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:29] "GET /static/css/style.css HTTP/1.1" 200 -
+2026-02-19 11:35:29,963 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:29] "GET /static/js/app.js HTTP/1.1" 200 -
+2026-02-19 11:35:30,497 - INFO - Client connected: 8Vru6peiWRWXGnXZAAAB
+2026-02-19 11:35:30,518 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:30] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:35:30,554 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:30] "GET /api/config HTTP/1.1" 200 -
+2026-02-19 11:35:30,765 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:30] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:35:34,645 - INFO - Baseline initialized: Long=0.0, Short=0.0 contracts
+2026-02-19 11:35:51,710 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:51] "POST /api/config HTTP/1.1" 200 -
+2026-02-19 11:35:55,951 - INFO - 127.0.0.1 - - [19/Feb/2026 11:35:55] "POST /api/config HTTP/1.1" 200 -
+2026-02-19 11:36:22,590 - INFO - Product Info Updated for ETH-USDT-SWAP: ContractSize=0.1, LotSz=0.01
+2026-02-19 11:36:28,697 - INFO - Bot initialized and started (Mode: Active)
+2026-02-19 11:36:30,171 - INFO - Websocket connected
+2026-02-19 11:36:30,195 - INFO - Websocket connected
+2026-02-19 11:36:30,537 - INFO - WebSocket Login Successful.
+2026-02-19 11:36:36,898 - INFO - ----------------------------------------------
+2026-02-19 11:36:36,901 - INFO - Entry check logs
+2026-02-19 11:36:36,915 - INFO - Strategy Evaluation - Price: 1982.43, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:36:36,980 - INFO - Short Signal Triggered: Price 1982.43 >= 1500
+2026-02-19 11:36:39,581 - ERROR - Order failed: All operations failed | Detail: Parameter posSide error  (sCode: 51000) (Code: 1). Request: sz=17.64, px=1984.60, side=sell, tdMode=cross, posSide=short, algo=False
+2026-02-19 11:36:39,584 - INFO - Waiting for next loop
+2026-02-19 11:36:39,587 - INFO - ----------------------------------------------
+2026-02-19 11:37:00,481 - INFO - ----------------------------------------------
+2026-02-19 11:37:00,504 - INFO - Entry check logs
+2026-02-19 11:37:00,508 - INFO - Strategy Evaluation - Price: 1977.3, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:37:00,512 - INFO - Short Signal Triggered: Price 1977.3 >= 1500
+2026-02-19 11:37:02,358 - ERROR - Order failed: All operations failed | Detail: Parameter posSide error  (sCode: 51000) (Code: 1). Request: sz=17.68, px=1979.63, side=sell, tdMode=cross, posSide=short, algo=False
+2026-02-19 11:37:02,364 - INFO - Waiting for next loop
+2026-02-19 11:37:02,368 - INFO - ----------------------------------------------
+2026-02-19 11:37:12,407 - INFO - ----------------------------------------------
+2026-02-19 11:37:12,412 - INFO - Entry check logs
+2026-02-19 11:37:12,417 - INFO - Strategy Evaluation - Price: 1975.1, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:37:12,447 - INFO - Short Signal Triggered: Price 1975.1 >= 1500
+2026-02-19 11:37:14,710 - ERROR - Order failed: All operations failed | Detail: Parameter posSide error  (sCode: 51000) (Code: 1). Request: sz=17.70, px=1977.10, side=sell, tdMode=cross, posSide=short, algo=False
+2026-02-19 11:37:14,739 - INFO - Waiting for next loop
+2026-02-19 11:37:14,747 - INFO - ----------------------------------------------
+2026-02-19 11:37:25,654 - INFO - Bot trading stopped
+2026-02-19 11:37:49,454 - INFO - Client disconnected
+2026-02-19 11:37:49,459 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:49] "GET /socket.io/?EIO=4&transport=websocket HTTP/1.1" 200 -
+2026-02-19 11:37:49,774 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:49] "GET / HTTP/1.1" 200 -
+2026-02-19 11:37:49,862 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:49] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2026-02-19 11:37:50,034 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:50] "[36mGET /static/js/app.js HTTP/1.1[0m" 304 -
+2026-02-19 11:37:50,615 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:50] "GET /api/config HTTP/1.1" 200 -
+2026-02-19 11:37:50,647 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:50] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:37:50,809 - INFO - Client connected: PHtZfmetjJVaC4RHAAAD
+2026-02-19 11:37:50,881 - INFO - 127.0.0.1 - - [19/Feb/2026 11:37:50] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:39:21,621 - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://10.2.0.2:5000
+2026-02-19 11:39:21,624 - INFO - [33mPress CTRL+C to quit[0m
+2026-02-19 11:39:21,863 - INFO - Client connected: OeFEH8bs_O67fywoAAAB
+2026-02-19 11:39:22,198 - INFO - 127.0.0.1 - - [19/Feb/2026 11:39:22] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:39:25,371 - INFO - Product Info Updated for ETH-USDT-SWAP: ContractSize=0.1, LotSz=0.01
+2026-02-19 11:39:29,447 - INFO - Bot initialized and started (Mode: Passive)
+2026-02-19 11:39:30,817 - INFO - Websocket connected
+2026-02-19 11:39:30,825 - INFO - Websocket connected
+2026-02-19 11:39:31,194 - INFO - WebSocket Login Successful.
+2026-02-19 11:39:46,626 - INFO - Baseline initialized: Long=0.0, Short=0.0 contracts
+2026-02-19 11:49:15,909 - INFO - Client disconnected
+2026-02-19 11:49:15,916 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:15] "GET /socket.io/?EIO=4&transport=websocket HTTP/1.1" 200 -
+2026-02-19 11:49:16,398 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:16] "GET / HTTP/1.1" 200 -
+2026-02-19 11:49:16,639 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:16] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2026-02-19 11:49:16,740 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:16] "[36mGET /static/js/app.js HTTP/1.1[0m" 304 -
+2026-02-19 11:49:17,077 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:17] "GET /api/config HTTP/1.1" 200 -
+2026-02-19 11:49:17,084 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:17] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:49:17,101 - INFO - Client connected: v2S_G9YSwnRaA4JdAAAD
+2026-02-19 11:49:17,330 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:17] "GET /api/status HTTP/1.1" 200 -
+2026-02-19 11:49:34,064 - INFO - 127.0.0.1 - - [19/Feb/2026 11:49:34] "POST /api/config HTTP/1.1" 200 -
+2026-02-19 11:49:40,571 - INFO - ----------------------------------------------
+2026-02-19 11:49:40,574 - INFO - Entry check logs
+2026-02-19 11:49:40,577 - INFO - Strategy Evaluation - Price: 1994.0, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:49:40,585 - INFO - Short Signal Triggered: Price 1994.0 >= 1500
+2026-02-19 11:49:43,398 - INFO - Placed batch #1 of 1 short orders (Total Qty: 17.5336)
+2026-02-19 11:49:43,401 - INFO - Waiting for next loop
+2026-02-19 11:49:43,406 - INFO - ----------------------------------------------
+2026-02-19 11:49:43,560 - INFO - Product Info Updated for ETH-USDT-SWAP: ContractSize=0.1, LotSz=0.01
+2026-02-19 11:49:49,340 - INFO - Bot initialized and started (Mode: Active)
+2026-02-19 11:49:50,833 - INFO - Websocket connected
+2026-02-19 11:49:51,060 - INFO - Websocket connected
+2026-02-19 11:49:51,439 - INFO - WebSocket Login Successful.
+2026-02-19 11:50:05,104 - INFO - ----------------------------------------------
+2026-02-19 11:50:05,114 - INFO - Entry check logs
+2026-02-19 11:50:05,120 - INFO - Strategy Evaluation - Price: 1992.7, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:50:05,149 - INFO - Short Signal Triggered: Price 1992.7 >= 1500
+2026-02-19 11:50:07,641 - INFO - Placed batch #2 of 1 short orders (Total Qty: 17.5436)
+2026-02-19 11:50:07,644 - INFO - Waiting for next loop
+2026-02-19 11:50:07,647 - INFO - ----------------------------------------------
+2026-02-19 11:50:17,664 - INFO - ----------------------------------------------
+2026-02-19 11:50:17,671 - INFO - Entry check logs
+2026-02-19 11:50:17,678 - INFO - Strategy Evaluation - Price: 1992.7, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:50:17,688 - INFO - Short Signal Triggered: Price 1992.7 >= 1500
+2026-02-19 11:50:20,736 - INFO - Placed batch #3 of 1 short orders (Total Qty: 17.5465)
+2026-02-19 11:50:20,740 - INFO - Waiting for next loop
+2026-02-19 11:50:20,745 - INFO - ----------------------------------------------
+2026-02-19 11:50:35,716 - INFO - Auto-canceling order 3321747259892846592: Timeout (52s >= 30s)
+2026-02-19 11:50:43,374 - INFO - ----------------------------------------------
+2026-02-19 11:50:43,380 - INFO - Entry check logs
+2026-02-19 11:50:43,386 - INFO - Strategy Evaluation - Price: 1992.75, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:50:43,400 - INFO - Short Signal Triggered: Price 1992.75 >= 1500
+2026-02-19 11:50:46,105 - INFO - Placed batch #4 of 1 short orders (Total Qty: 17.5446)
+2026-02-19 11:50:46,110 - INFO - Waiting for next loop
+2026-02-19 11:50:46,113 - INFO - ----------------------------------------------
+2026-02-19 11:51:07,305 - INFO - Auto-canceling order 3321748517244522496: Timeout (46s >= 30s)
+2026-02-19 11:51:07,310 - INFO - Auto-canceling order 3321748077010374656: Timeout (59s >= 30s)
+2026-02-19 11:51:09,994 - INFO - ----------------------------------------------
+2026-02-19 11:51:09,999 - INFO - Entry check logs
+2026-02-19 11:51:10,002 - INFO - Strategy Evaluation - Price: 1992.91, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:51:10,021 - INFO - Short Signal Triggered: Price 1992.91 >= 1500
+2026-02-19 11:51:12,733 - INFO - Placed batch #5 of 1 short orders (Total Qty: 17.5417)
+2026-02-19 11:51:12,737 - INFO - Waiting for next loop
+2026-02-19 11:51:12,740 - INFO - ----------------------------------------------
+2026-02-19 11:51:22,755 - INFO - ----------------------------------------------
+2026-02-19 11:51:22,759 - INFO - Entry check logs
+2026-02-19 11:51:22,767 - INFO - Strategy Evaluation - Price: 1993.8, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:51:22,773 - INFO - Short Signal Triggered: Price 1993.8 >= 1500
+2026-02-19 11:51:25,397 - INFO - Placed batch #6 of 1 short orders (Total Qty: 17.5368)
+2026-02-19 11:51:25,403 - INFO - Waiting for next loop
+2026-02-19 11:51:25,407 - INFO - ----------------------------------------------
+2026-02-19 11:51:40,089 - INFO - Auto-canceling order 3321749367715155968: Timeout (53s >= 30s)
+2026-02-19 11:51:47,655 - INFO - ----------------------------------------------
+2026-02-19 11:51:47,659 - INFO - Entry check logs
+2026-02-19 11:51:47,661 - INFO - Strategy Evaluation - Price: 1992.7, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:51:47,664 - INFO - Short Signal Triggered: Price 1992.7 >= 1500
+2026-02-19 11:51:50,213 - INFO - Placed batch #7 of 1 short orders (Total Qty: 17.5450)
+2026-02-19 11:51:50,220 - INFO - Waiting for next loop
+2026-02-19 11:51:50,223 - INFO - ----------------------------------------------
+2026-02-19 11:52:09,982 - INFO - Auto-canceling order 3321750686605660160: Timeout (44s >= 30s)
+2026-02-19 11:52:09,985 - INFO - Auto-canceling order 3321750262041432064: Timeout (57s >= 30s)
+2026-02-19 11:52:12,509 - INFO - ----------------------------------------------
+2026-02-19 11:52:12,513 - INFO - Entry check logs
+2026-02-19 11:52:12,516 - INFO - Strategy Evaluation - Price: 1990.43, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:52:12,521 - INFO - Short Signal Triggered: Price 1990.43 >= 1500
+2026-02-19 11:52:15,159 - INFO - Placed batch #8 of 1 short orders (Total Qty: 17.5636)
+2026-02-19 11:52:15,177 - INFO - Waiting for next loop
+2026-02-19 11:52:15,183 - INFO - ----------------------------------------------
+2026-02-19 11:52:25,199 - INFO - ----------------------------------------------
+2026-02-19 11:52:25,203 - INFO - Entry check logs
+2026-02-19 11:52:25,208 - INFO - Strategy Evaluation - Price: 1989.4, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:52:25,214 - INFO - Short Signal Triggered: Price 1989.4 >= 1500
+2026-02-19 11:52:27,593 - INFO - Placed batch #9 of 1 short orders (Total Qty: 17.5756)
+2026-02-19 11:52:27,595 - INFO - Waiting for next loop
+2026-02-19 11:52:27,597 - INFO - ----------------------------------------------
+2026-02-19 11:52:43,202 - INFO - Auto-canceling order 3321751519325999104: Timeout (52s >= 30s)
+2026-02-19 11:52:50,730 - INFO - ----------------------------------------------
+2026-02-19 11:52:50,737 - INFO - Entry check logs
+2026-02-19 11:52:50,742 - INFO - Strategy Evaluation - Price: 1988.24, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:52:50,757 - INFO - Short Signal Triggered: Price 1988.24 >= 1500
+2026-02-19 11:52:53,381 - INFO - Placed batch #10 of 1 short orders (Total Qty: 17.5843)
+2026-02-19 11:52:53,385 - INFO - Waiting for next loop
+2026-02-19 11:52:53,389 - INFO - ----------------------------------------------
+2026-02-19 11:53:12,607 - INFO - Auto-canceling order 3321752773557112832: Timeout (44s >= 30s)
+2026-02-19 11:53:12,611 - INFO - Auto-canceling order 3321752355066236928: Timeout (57s >= 30s)
+2026-02-19 11:53:15,264 - INFO - ----------------------------------------------
+2026-02-19 11:53:15,269 - INFO - Entry check logs
+2026-02-19 11:53:15,271 - INFO - Strategy Evaluation - Price: 1988.29, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:53:15,277 - INFO - Short Signal Triggered: Price 1988.29 >= 1500
+2026-02-19 11:53:18,079 - INFO - Placed batch #11 of 1 short orders (Total Qty: 17.5824)
+2026-02-19 11:53:18,083 - INFO - Waiting for next loop
+2026-02-19 11:53:18,085 - INFO - ----------------------------------------------
+2026-02-19 11:53:28,098 - INFO - ----------------------------------------------
+2026-02-19 11:53:28,102 - INFO - Entry check logs
+2026-02-19 11:53:28,105 - INFO - Strategy Evaluation - Price: 1988.71, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:53:28,111 - INFO - Short Signal Triggered: Price 1988.71 >= 1500
+2026-02-19 11:53:30,842 - INFO - Placed batch #12 of 1 short orders (Total Qty: 17.5817)
+2026-02-19 11:53:30,844 - INFO - Waiting for next loop
+2026-02-19 11:53:30,848 - INFO - ----------------------------------------------
+2026-02-19 11:53:45,798 - INFO - Auto-canceling order 3321753638556815360: Timeout (52s >= 30s)
+2026-02-19 11:53:53,003 - INFO - ----------------------------------------------
+2026-02-19 11:53:53,010 - INFO - Entry check logs
+2026-02-19 11:53:53,018 - INFO - Strategy Evaluation - Price: 1987.95, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:53:53,024 - INFO - Short Signal Triggered: Price 1987.95 >= 1500
+2026-02-19 11:53:55,580 - INFO - Placed batch #13 of 1 short orders (Total Qty: 17.5869)
+2026-02-19 11:53:55,583 - INFO - Waiting for next loop
+2026-02-19 11:53:55,586 - INFO - ----------------------------------------------
+2026-02-19 11:54:15,259 - INFO - Auto-canceling order 3321754895707164672: Timeout (44s >= 30s)
+2026-02-19 11:54:15,261 - INFO - Auto-canceling order 3321754467854602240: Timeout (57s >= 30s)
+2026-02-19 11:54:17,780 - INFO - ----------------------------------------------
+2026-02-19 11:54:17,782 - INFO - Entry check logs
+2026-02-19 11:54:17,785 - INFO - Strategy Evaluation - Price: 1988.12, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:54:17,789 - INFO - Short Signal Triggered: Price 1988.12 >= 1500
+2026-02-19 11:54:20,471 - INFO - Placed batch #14 of 1 short orders (Total Qty: 17.5839)
+2026-02-19 11:54:20,475 - INFO - Waiting for next loop
+2026-02-19 11:54:20,478 - INFO - ----------------------------------------------
+2026-02-19 11:54:30,490 - INFO - ----------------------------------------------
+2026-02-19 11:54:30,494 - INFO - Entry check logs
+2026-02-19 11:54:30,496 - INFO - Strategy Evaluation - Price: 1988.24, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:54:30,499 - INFO - Short Signal Triggered: Price 1988.24 >= 1500
+2026-02-19 11:54:33,092 - INFO - Placed batch #15 of 1 short orders (Total Qty: 17.5858)
+2026-02-19 11:54:33,096 - INFO - Waiting for next loop
+2026-02-19 11:54:33,099 - INFO - ----------------------------------------------
+2026-02-19 11:54:47,685 - INFO - Auto-canceling order 3321755723897655296: Timeout (52s >= 30s)
+2026-02-19 11:54:55,434 - INFO - ----------------------------------------------
+2026-02-19 11:54:55,440 - INFO - Entry check logs
+2026-02-19 11:54:55,447 - INFO - Strategy Evaluation - Price: 1988.33, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:54:55,462 - INFO - Short Signal Triggered: Price 1988.33 >= 1500
+2026-02-19 11:54:58,305 - INFO - Placed batch #16 of 1 short orders (Total Qty: 17.5836)
+2026-02-19 11:54:58,308 - INFO - Waiting for next loop
+2026-02-19 11:54:58,312 - INFO - ----------------------------------------------
+2026-02-19 11:55:17,659 - INFO - Auto-canceling order 3321756979034738688: Timeout (44s >= 30s)
+2026-02-19 11:55:17,669 - INFO - Auto-canceling order 3321756566516551680: Timeout (56s >= 30s)
+2026-02-19 11:55:20,080 - INFO - ----------------------------------------------
+2026-02-19 11:55:20,085 - INFO - Entry check logs
+2026-02-19 11:55:20,089 - INFO - Strategy Evaluation - Price: 1988.3, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:55:20,093 - INFO - Short Signal Triggered: Price 1988.3 >= 1500
+2026-02-19 11:55:22,733 - INFO - Placed batch #17 of 1 short orders (Total Qty: 17.5823)
+2026-02-19 11:55:22,736 - INFO - Waiting for next loop
+2026-02-19 11:55:22,740 - INFO - ----------------------------------------------
+2026-02-19 11:55:32,758 - INFO - ----------------------------------------------
+2026-02-19 11:55:32,770 - INFO - Entry check logs
+2026-02-19 11:55:32,775 - INFO - Strategy Evaluation - Price: 1987.39, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:55:32,792 - INFO - Short Signal Triggered: Price 1987.39 >= 1500
+2026-02-19 11:55:35,272 - INFO - Placed batch #18 of 1 short orders (Total Qty: 17.5933)
+2026-02-19 11:55:35,276 - INFO - Waiting for next loop
+2026-02-19 11:55:35,279 - INFO - ----------------------------------------------
+2026-02-19 11:55:49,889 - INFO - Auto-canceling order 3321757827861204992: Timeout (51s >= 30s)
+2026-02-19 11:55:57,564 - INFO - ----------------------------------------------
+2026-02-19 11:55:57,570 - INFO - Entry check logs
+2026-02-19 11:55:57,574 - INFO - Strategy Evaluation - Price: 1987.2, Safety Lines: [Long <= 3000, Short >= 1500], Direction: short
+2026-02-19 11:55:57,582 - INFO - Short Signal Triggered: Price 1987.2 >= 1500
+2026-02-19 11:55:59,821 - INFO - Bot trading stopped
+2026-02-19 11:56:00,228 - INFO - Placed batch #19 of 1 short orders (Total Qty: 17.5935)
+2026-02-19 11:56:00,233 - INFO - Waiting for next loop
+2026-02-19 11:56:00,237 - INFO - ----------------------------------------------
+2026-02-19 11:56:19,767 - INFO - Auto-canceling order 3321758650615877632: Timeout (56s >= 30s)
+2026-02-19 11:56:46,988 - INFO - Auto-canceling order 3321759908672196608: Timeout (46s >= 30s)
