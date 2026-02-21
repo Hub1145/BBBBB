@@ -40,7 +40,8 @@ class PositionManager:
         contract_size = safe_float(self.engine.product_info.get('contractSize', 1.0))
 
         with self.engine.lock:
-            if not self.baseline_initialized and is_snapshot:
+            initial_run = not self.baseline_initialized and is_snapshot
+            if initial_run:
                 # We initialize baseline from the first set of positions we receive
                 for pos in positions_data:
                     if pos.get('instId', '').strip().upper() == target_symbol:
@@ -71,7 +72,7 @@ class PositionManager:
                         self.position_liq[side_key] = safe_float(pos.get('liqp', '0'))
                         self.position_details[side_key] = pos
 
-                        # Loop margin tracking: cap loop_qty by current actual position
+                        # Loop margin tracking: startup positions are treated as manual (don't adopt)
                         self.loop_qty[side_key] = min(self.loop_qty[side_key], abs(qty_raw))
 
                         if abs(qty_raw - prev_qtys.get(side_key, 0.0)) > 1e-6:

@@ -10,6 +10,8 @@ class AutoCalManager:
         self.lock = threading.Lock()
         self.need_add_usdt_profit_target = 0.0
         self.need_add_usdt_above_zero = 0.0
+        self.raw_need_add_usdt_profit_target = 0.0
+        self.raw_need_add_usdt_above_zero = 0.0
         self.need_add_above_zero_per_side = {'long': 0.0, 'short': 0.0}
         self.need_add_profit_target_per_side = {'long': 0.0, 'short': 0.0}
         self.auto_add_step_count = {'long': 0, 'short': 0}
@@ -23,23 +25,14 @@ class AutoCalManager:
     def _calculate_need_add_metrics_internal(self):
         self.need_add_usdt_profit_target = 0.0
         self.need_add_usdt_above_zero = 0.0
+        self.raw_need_add_usdt_profit_target = 0.0
+        self.raw_need_add_usdt_above_zero = 0.0
         self.need_add_above_zero_per_side = {'long': 0.0, 'short': 0.0}
         self.need_add_profit_target_per_side = {'long': 0.0, 'short': 0.0}
 
-        # Avoid calculation with default/stale product info
-        if not self.engine.product_info.get('is_loaded'):
-            if self.engine.monitoring_tick % 60 == 0:
-                self.engine.log("Auto-Cal calculation skipped: Product Info not loaded.", level="debug")
-            return
+        if not self.engine.product_info.get('is_loaded'): return
 
         mkt = self.engine.latest_trade_price
-        if mkt <= 0:
-            # Fallback to entry price to allow calculation even before first ticker
-            for side in ['long', 'short']:
-                if self.engine.in_position[side]:
-                    mkt = self.engine.position_entry_price[side]
-                    if mkt > 0: break
-
         if mkt <= 0: return
 
         fee_pct = self.config.get('trade_fee_percentage', 0.08) / 100.0
@@ -47,47 +40,45 @@ class AutoCalManager:
         rec = max(0.1, rec_val) / 100.0
         mult = self.config.get('add_pos_profit_multiplier', 1.5)
 
-        # Gain factor from adding 1 USDT notional and moving 'rec' percent
-        # We pay fee_pct for entry and fee_pct for exit (estimated)
-        gain_factor = rec - (2 * fee_pct)
-        if gain_factor <= 0: gain_factor = 0.0001
+        # CLIENT FORMULA: Target UPL = Notional * fee_pct * multiplier
+        surplus_target = fee_pct * mult
+        gain_on_rec = rec - surplus_target
+        if gain_on_rec <= 0: gain_on_rec = 0.0001
 
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
                 notional = self.engine.position_manager.position_notional[side]
-
-                # USER FEEDBACK: Use the same logic as "Net Profit" in Financials.
-                # Net Profit = UPL - Current Entry Fees - Realized Loss this cycle
+                # Match OKX Interface: Use raw UPL for recovery calculations
                 upl = self.engine.position_manager.position_upl[side]
-                entry_fees = self.engine.position_manager.current_entry_fees.get(side, 0.0)
-                cycle_loss = self.engine.position_manager.realized_loss_this_cycle.get(side, 0.0)
-                current_net_pnl = upl - entry_fees - cycle_loss
 
-                # Simplified formula to ensure Need Add is always positive when in loss/below target.
-                # We calculate V such that adding V and moving rec% covers the TARGET profit.
-                # V = (Target - CurrentNetPnL) / (rec - 2 * fee_pct)
-
-                # Mode 1: Above Zero (Target Net PnL = 0)
+                # Mode 1: Above Zero (Target UPL = 0)
                 v_zero = 0.0
-                if current_net_pnl < 0:
-                    v_zero = (-current_net_pnl) / gain_factor
+                if upl < 0:
+                    # (Notional + V) * rec + upl = 0  => V = -upl/rec - Notional
+                    v_zero_raw = (-upl / rec) - notional
+                    v_zero = max(0.0, v_zero_raw)
+                    self.raw_need_add_usdt_above_zero += v_zero_raw
 
                 if v_zero > 0:
                     self.need_add_above_zero_per_side[side] = v_zero
                     self.need_add_usdt_above_zero += v_zero
 
-                self.engine.log(f"Auto-Cal Debug ({side.upper()}): NetPnL={current_net_pnl:.2f}, UPL={upl:.2f}, Fees={entry_fees:.2f}, Target0_Need={v_zero:.2f}", level="debug")
-
                 # Mode 2: Profit Target
-                # Target Net Profit = One-way fee * multiplier
-                target_net_profit = (notional * fee_pct) * mult
-                v_profit = (target_net_profit - current_net_pnl) / gain_factor
-                if v_profit < 0: v_profit = 0.0
+                # (Notional + V) * rec + upl = (Notional + V) * surplus_target
+                # Raw V = (-upl / gain_on_rec) - notional
+                raw_v_profit = (-upl / gain_on_rec) - notional
+                v_profit = max(0.0, raw_v_profit)
+                self.raw_need_add_usdt_profit_target += raw_v_profit
+
+                if self.engine.monitoring_tick % 10 == 0:
+                    safe_limit = notional * gain_on_rec
+                    target_pnl = notional * surplus_target
+                    self.engine.log(f"Auto-Cal ({side.upper()}): UPL=${upl:.2f}, Raw Need-Add=${raw_v_profit:.2f}. "
+                                    f"(Target: ${target_pnl:.2f}, Safety Threshold: -${safe_limit:.2f})", level="info")
 
                 if v_profit > 0:
                     self.need_add_profit_target_per_side[side] = v_profit
                     self.need_add_usdt_profit_target += v_profit
-                    self.engine.log(f"Auto-Cal Debug ({side.upper()}): TargetProfit={target_net_profit:.2f}, TargetProfit_Need={v_profit:.2f}", level="debug")
 
     def check_auto_exit(self, net_pnl, unrealized_pnl):
         notional = self.engine.cached_pos_notional
@@ -102,17 +93,16 @@ class AutoCalManager:
         if self.config.get('use_add_pos_above_zero') and net_pnl >= 0:
             return True, "Above Zero Target Met (Mode 1)"
 
-        # 2. Profit Target (Mode 2)
         if self.config.get('use_add_pos_profit_target'):
-            mult = self.config.get('add_pos_profit_multiplier', 1.5)
-            # Match user expectation: Net Profit = One-way Fee * Multiplier
-            # So Target Unrealized PnL = Total Cycle Fees + Estimated Exit Fee + (One-way Fee * Multiplier)
-            one_way_fee = notional * fee_pct
-            total_cycle_fees = sum(self.engine.position_manager.current_entry_fees.values())
-            target = total_cycle_fees + one_way_fee + (one_way_fee * mult)
+            mult = float(self.config.get('add_pos_profit_multiplier', 1.5))
+            # Match user math: Target = Current Size * Fee% * Multiplier
+            target = notional * fee_pct * mult
 
-            if unrealized_pnl >= target:
-                return True, f"Profit Target Met (Mode 2: Net > {one_way_fee * mult:.2f})"
+            if self.engine.monitoring_tick % 10 == 0:
+                self.engine.log(f"Auto-Exit Check (Mode 2): PnL=${net_pnl:.2f}, Target=${target:.2f} ({mult}x Fees)", level="info")
+
+            if net_pnl >= target:
+                return True, f"Profit Target Met (Mode 2: PnL > {target:.2f})"
 
         # 3. Auto-Manual Threshold
         if self.config.get('use_pnl_auto_manual'):
@@ -162,8 +152,8 @@ class AutoCalManager:
         with self.lock:
             if not any(self.config.get(k) for k in ['use_add_pos_auto_cal', 'use_add_pos_above_zero', 'use_add_pos_profit_target']): return
 
-            # Lockout to prevent rapid-fire adds before position sync
-            if time.time() - self.last_order_time < 10: return
+            # Lockout to prevent rapid-fire adds before position sync (Reduced to 3s for responsiveness)
+            if time.time() - self.last_order_time < 3: return
 
             mkt = self.engine.latest_trade_price
             if not mkt: return
@@ -181,13 +171,23 @@ class AutoCalManager:
                     gap_offset = float(self.config.get('add_pos_gap_offset', 0.0))
                     gap = gap_threshold + (self.auto_add_step_count[side] * gap_offset)
 
+                    # Gap = Market Price - Entry Price (for Shorts) or Entry - Market (for Longs)
                     price_diff = (self.last_add_price[side] - mkt) if side == 'long' else (mkt - self.last_add_price[side])
 
-                    if price_diff >= gap:
-                        self.engine.log(f"Auto-Add Gap Triggered: {side} position, last add {self.last_add_price[side]}, mkt {mkt}, gap {gap:.2f}")
+                    # Dual Trigger: Trigger addition if Price Gap Threshold OR PnL Recovery Target (Mode 2) is hit.
+                    pnl_trigger = (self.need_add_profit_target_per_side[side] > 0)
+                    gap_trigger = (price_diff >= gap)
+
+                    if self.engine.monitoring_tick % 10 == 0:
+                        self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Entry: {self.last_add_price[side]:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
+
+                    if gap_trigger or pnl_trigger:
+                        reason = "Gap Threshold" if gap_trigger else "PnL Target"
+                        self.engine.log(f"Auto-Add Triggered ({side.upper()}) via {reason}. Executing Add.", level="info")
                         if self._execute_add(side, mkt):
+                            # Move last_add_price to current market so next trigger is relative to this add
                             self.last_add_price[side] = mkt
-                            break # Only one add per check loop to maintain sanity
+                            return
                 else:
                     self.auto_add_step_count[side] = 0
                     self.last_add_price[side] = 0.0
@@ -203,10 +203,11 @@ class AutoCalManager:
             target_notional = max(target_notional, self.need_add_above_zero_per_side[side])
             is_recovery = True
 
-        max_adds = int(self.config.get('add_pos_max_count', 10))
-        if self.auto_add_step_count[side] >= max_adds:
-            self.engine.log(f"Auto-Add: Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping.", level="info")
-            return False
+        # Max adds restriction removed per user request for unrestricted recovery
+        # max_adds = int(self.config.get('add_pos_max_count', 10))
+        # if self.auto_add_step_count[side] >= max_adds:
+        #     self.engine.log(f"Auto-Add: Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping.", level="info")
+        #     return False
 
         current_notional = self.engine.position_manager.position_notional[side]
         # Calculate size based on percentage

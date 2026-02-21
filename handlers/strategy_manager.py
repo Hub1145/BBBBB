@@ -14,14 +14,20 @@ class StrategyManager:
         if not self.engine.indicator_manager.check_candlestick_conditions():
             return []
 
+        # If we are already in position or exiting, skip strategy entry (unless both directions allowed)
+        # However, for One-Way mode especially, we should check if we already have the side we want.
+        in_pos = self.engine.in_position
+        authoritative_exit = getattr(self.engine, 'authoritative_exit_in_progress', False)
+        if authoritative_exit: return []
+
         price = self.engine.latest_trade_price
         if price <= 0: return []
 
         direction = self.config.get('direction', 'both')
         offset = safe_float(self.config.get('entry_price_offset', 0))
 
-        long_line = self.config.get('long_safety_line_price', 0)
-        short_line = self.config.get('short_safety_line_price', 0)
+        long_line = safe_float(self.config.get('long_safety_line_price'), 0)
+        short_line = safe_float(self.config.get('short_safety_line_price'), 0)
 
         self.engine.log(f"Strategy Evaluation - Price: {price}, Safety Lines: [Long <= {long_line}, Short >= {short_line}], Direction: {direction}", level="info")
 

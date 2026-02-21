@@ -334,7 +334,8 @@ function setupSocketListeners() {
         updateBotStatus(data.running);
     });
 
-    socket.on('account_update', (data) => { console.log('Received account_update', data);
+    socket.on('account_update', (data) => {
+        if (currentConfig?.debug_mode) console.log('Received account_update', data);
         updateAccountMetrics(data);
     });
 
@@ -435,6 +436,37 @@ function updateAccountMetrics(data) {
         if (el) el.textContent = text;
     };
 
+    // --- HIGH PRIORITY: Need Add Display ---
+    const needAddTgt = Number(data.need_add_usdt) || 0;
+    const needAddAboveZero = Number(data.need_add_above_zero) || 0;
+    const rawNeedAddTgt = Number(data.raw_need_add_usdt) || 0;
+    const rawNeedAddAboveZero = Number(data.raw_need_add_above_zero) || 0;
+
+    const tgtEl = document.getElementById('needAddProfitTargetDisplay');
+    const zeroEl = document.getElementById('needAddAboveZeroDisplay');
+
+    if (tgtEl) {
+        tgtEl.textContent = `$${safeFix(needAddTgt)} ($${safeFix(rawNeedAddTgt)})`;
+        if (needAddTgt > 0) {
+            tgtEl.parentElement.classList.add('bg-warning-subtle');
+            tgtEl.classList.add('text-warning');
+        } else {
+            tgtEl.parentElement.classList.remove('bg-warning-subtle');
+            tgtEl.classList.remove('text-warning');
+        }
+    }
+    if (zeroEl) {
+        zeroEl.textContent = `$${safeFix(needAddAboveZero)} ($${safeFix(rawNeedAddAboveZero)})`;
+        if (needAddAboveZero > 0) {
+            zeroEl.parentElement.classList.add('bg-warning-subtle');
+            zeroEl.classList.add('text-warning');
+        } else {
+            zeroEl.parentElement.classList.remove('bg-warning-subtle');
+            zeroEl.classList.remove('text-warning');
+        }
+    }
+    // ----------------------------------------
+
     if (data.total_capital !== undefined) {
         safeSetText('totalCapital', `$${safeFix(data.total_capital)}`);
     }
@@ -464,11 +496,6 @@ function updateAccountMetrics(data) {
             remainingEl.style.fontSize = '';
         }
     }
-    const needAddProfitVal = Number(data.need_add_usdt) || 0;
-    const needAddPnlVal = Number(data.need_add_above_zero) || 0;
-
-    safeSetText('needAddProfitTargetDisplay', `$${safeFix(needAddProfitVal)}`);
-    safeSetText('needAddAboveZeroDisplay', `$${safeFix(needAddPnlVal)}`);
     if (data.available_balance !== undefined) {
         safeSetText('balance', `$${safeFix(data.available_balance)}`);
     }
@@ -477,14 +504,10 @@ function updateAccountMetrics(data) {
     const headerEl = document.getElementById('autoAddPosHeader');
     if (headerEl) {
         let side = '';
-        if (data.positions && data.positions.short && data.positions.short.in) {
+        if (data.in_position && data.in_position.short) {
             side = 'Short';
-        } else if (data.positions && data.positions.long && data.positions.long.in) {
+        } else if (data.in_position && data.in_position.long) {
             side = 'Long';
-        } else if (data.in_position && typeof data.in_position === 'object') {
-            // Fallback to in_position dict if positions not formatted
-            if (data.in_position.short) side = 'Short';
-            else if (data.in_position.long) side = 'Long';
         }
 
         if (side) {
@@ -549,32 +572,6 @@ function updateAccountMetrics(data) {
     lastUsedFee = usedFee;
     lastSizeFee = sizeFee;
 
-    // UI Color Feedback for Need Add
-    const needAddTgt = data.need_add_usdt || 0;
-    const needAddAboveZero = data.need_add_above_zero || 0;
-
-    const tgtEl = document.getElementById('needAddProfitTargetDisplay');
-    const zeroEl = document.getElementById('needAddAboveZeroDisplay');
-
-    if (tgtEl) {
-        if (needAddTgt > 0) {
-            tgtEl.parentElement.classList.add('bg-warning-subtle');
-            tgtEl.classList.add('text-warning');
-        } else {
-            tgtEl.parentElement.classList.remove('bg-warning-subtle');
-            tgtEl.classList.remove('text-warning');
-        }
-    }
-
-    if (zeroEl) {
-        if (needAddAboveZero > 0) {
-            zeroEl.parentElement.classList.add('bg-warning-subtle');
-            zeroEl.classList.add('text-warning');
-        } else {
-            zeroEl.parentElement.classList.remove('bg-warning-subtle');
-            zeroEl.classList.remove('text-warning');
-        }
-    }
 
     updateAutoCalDisplay();
     updatePositionDisplay(data);

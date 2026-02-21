@@ -122,6 +122,10 @@ class TradingBotEngine:
     @property
     def need_add_usdt_above_zero(self): return self.auto_cal_manager.need_add_usdt_above_zero
     @property
+    def raw_need_add_usdt_profit_target(self): return self.auto_cal_manager.raw_need_add_usdt_profit_target
+    @property
+    def raw_need_add_usdt_above_zero(self): return self.auto_cal_manager.raw_need_add_usdt_above_zero
+    @property
     def trade_fees(self): return self.position_manager.total_fees
     @property
     def net_trade_profit(self): return self.position_manager.net_trade_profit
@@ -204,22 +208,11 @@ class TradingBotEngine:
 
                 # Dynamic TP/SL updates removed per client request to set them on order placement
 
-                # 2. Auto-Cal / Add / Margin (Always active, even in Stop mode as requested)
-                # We can run these checks frequently or at loop interval
+                # 2. Auto-Add / Margin (Polling remains for these as they are gap-based)
                 if not self.authoritative_exit_in_progress and self.monitoring_tick % 5 == 0:
                     self.auto_cal_manager.calculate_need_add_metrics()
                     self.auto_cal_manager.check_auto_add()
                     self.auto_cal_manager.check_auto_margin()
-
-                    fee_pct = self.config.get('trade_fee_percentage', 0.08) / 100.0
-                    # Sum fees for the net_pnl calculation used in check_auto_exit
-                    total_cycle_fees = sum(self.position_manager.current_entry_fees.values())
-                    # Estimated Exit Fee = cached_pos_notional * fee_pct
-                    net_pnl = self.cached_unrealized_pnl - total_cycle_fees - (self.cached_pos_notional * fee_pct)
-
-                    triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
-                    if triggered:
-                        threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
 
                 # 3. Strategy Analysis Loop (Structured logs, respects loop_interval)
                 if self.is_running and self.monitoring_tick % loop_interval == 0:
@@ -227,7 +220,7 @@ class TradingBotEngine:
                     self.log("Entry check logs")
                     if not self.authoritative_exit_in_progress:
                         self.strategy_manager.execute_strategy()
-                    self.log("Waiting for next loop")
+                    self.log(f"Waiting for next loop ({loop_interval}s)")
                     self.log("-" * 46)
 
                 # 4. WebSocket Health Check (Fallback)
@@ -258,6 +251,14 @@ class TradingBotEngine:
                     if not self.authoritative_exit_in_progress:
                         self.auto_cal_manager.calculate_need_add_metrics()
                         self.auto_cal_manager.check_auto_add()
+
+                        # REAL-TIME EXIT CHECK (ALIGNED WITH OKX UPL)
+                        # Client wants triggers to match the OKX screen's Unrealized PnL directly.
+                        net_pnl = self.cached_unrealized_pnl
+
+                        triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
+                        if triggered:
+                            threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
                     self._emit_socket_updates(throttle=True)
             elif channel == 'positions' and data:
                 self.position_manager.process_positions(data, is_snapshot=(action == 'snapshot'))
@@ -326,6 +327,8 @@ class TradingBotEngine:
             'daily_reports': self.daily_reports,
             'need_add_usdt': self.need_add_usdt_profit_target,
             'need_add_above_zero': self.need_add_usdt_above_zero,
+            'raw_need_add_usdt': self.raw_need_add_usdt_profit_target,
+            'raw_need_add_above_zero': self.raw_need_add_usdt_above_zero,
             'running': self.is_running,
             'trade_fees': self.trade_fees, 'net_trade_profit': self.net_trade_profit,
             'used_fees': sum(self.position_manager.current_entry_fees.values()),

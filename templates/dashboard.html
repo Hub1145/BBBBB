@@ -249,7 +249,7 @@
                                 <span class="text-secondary small text-uppercase fw-bold"
                                     style="font-size: 0.65rem;">Need Add</span>
                                 <span class="badge bg-warning text-dark" id="needAddAboveZeroDisplay"
-                                    style="font-size: 0.75rem;">$0.00</span>
+                                    style="font-size: 0.75rem;">---</span>
                             </div>
                         </div>
 
@@ -270,7 +270,7 @@
                                 <span class="text-secondary small text-uppercase fw-bold"
                                     style="font-size: 0.65rem;">Need Add</span>
                                 <span class="badge bg-info text-dark" id="needAddProfitTargetDisplay"
-                                    style="font-size: 0.75rem;">$0.00</span>
+                                    style="font-size: 0.75rem;">---</span>
                             </div>
                         </div>
 
@@ -458,7 +458,7 @@
                                             </div>
                                         </div>
                                     </div>
-                                    <!-- Box 5: Size Amount (New) -->
+                                    <!-- Box 5: Size Amount -->
                                     <div class="col-6 col-md-3">
                                         <div class="stat-card"
                                             style="height: 100%; display: flex; align-items: center; justify-content: center;">
@@ -514,11 +514,12 @@
                     <div class="tab-pane fade" id="position" role="tabpanel" aria-labelledby="position-tab">
                         <div class="card mb-3">
                             <div class="card-header">
-                                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Current Position</h5>
+                                <h5 class="mb-0"><i class="bi bi-box-seam"></i> Current Position Detail (Incl. Manual)
+                                </h5>
                             </div>
                             <div class="card-body">
-                                <div id="mlStrategyResults" class="params-display">
-                                    <p class="text-muted">No active position.</p>
+                                <div id="mlStrategyResults">
+                                    <p class="text-muted small">Checking for positions...</p>
                                 </div>
                             </div>
                         </div>
@@ -672,7 +673,8 @@
                                     </div>
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="useDeveloperApi">
-                                        <label class="form-check-label fw-bold" for="useDeveloperApi">Testing Mode (Use
+                                        <label class="form-check-label fw-bold" for="useDeveloperApi">Testing Mode
+                                            (Use
                                             Developer API)</label>
                                     </div>
                                     <button type="button" class="btn btn-info btn-sm mb-3" id="testApiKeyBtn">
@@ -707,7 +709,8 @@
                                             <option value="net_mode">One-Way Mode (Net)</option>
                                             <option value="long_short_mode">Hedge Mode (Long/Short)</option>
                                         </select>
-                                        <div class="form-text text-warning small">Note: Switching mode requires no open
+                                        <div class="form-text text-warning small">Note: Switching mode requires no
+                                            open
                                             positions.</div>
                                     </div>
                                     <div class="mb-3">
@@ -832,7 +835,8 @@
                                 data-bs-parent="#configAccordion">
                                 <div class="accordion-body">
                                     <div class="alert alert-info py-2 small">
-                                        Logic: <strong>Gap Trigger</strong> uses Market Orders to balance PnL near 0.
+                                        Logic: <strong>Gap Trigger</strong> uses Market Orders to balance PnL near
+                                        0.
                                     </div>
 
                                     <h6 class="fw-bold mb-2 small text-primary">Gap Trigger (Step 1: Market)</h6>
@@ -845,7 +849,8 @@
                                             <input type="number" class="form-control" id="addPosGapOffset" step="0.1"
                                                 placeholder="Add per Step">
                                         </div>
-                                        <div class="form-text">Triggers Market Add when Price moves X (+ Offset * Step)
+                                        <div class="form-text">Triggers Market Add when Price moves X (+ Offset *
+                                            Step)
                                             away from last entry.</div>
                                     </div>
 
@@ -860,7 +865,8 @@
 
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="useAddPosProfitTarget">
-                                        <label class="form-check-label" for="useAddPosProfitTarget">Enable Profit Target
+                                        <label class="form-check-label" for="useAddPosProfitTarget">Enable Profit
+                                            Target
                                             Logic</label>
                                     </div>
 
@@ -879,7 +885,8 @@
                                             <input type="number" class="form-control" id="addPosSizePctOffset" step="1"
                                                 placeholder="Add per Step">
                                         </div>
-                                        <div class="form-text">Add Amount = Current Size * (Percentage + Offset * Step).
+                                        <div class="form-text">Add Amount = Current Size * (Percentage + Offset *
+                                            Step).
                                         </div>
                                     </div>
 
@@ -893,7 +900,8 @@
                                         <label class="form-label">Step 2 Exit Offset ($)</label>
                                         <input type="number" class="form-control" id="addPosStep2Offset" step="0.1"
                                             placeholder="Optional: Overrides Multiplier">
-                                        <div class="form-text">Fixed distance from Avg Entry to place Limit Exit.</div>
+                                        <div class="form-text">Fixed distance from Avg Entry to place Limit Exit.
+                                        </div>
                                     </div>
 
                                     <div class="mb-3">
@@ -916,7 +924,8 @@
                                 <div class="accordion-body">
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="useCandlestickConditions">
-                                        <label class="form-check-label" for="useCandlestickConditions">Use Candlestick
+                                        <label class="form-check-label" for="useCandlestickConditions">Use
+                                            Candlestick
                                             Conditions</label>
                                     </div>
                                     <div class="mb-3">
@@ -936,7 +945,8 @@
                                     <div class="mb-3">
                                         <div class="form-check mb-2">
                                             <input type="checkbox" class="form-check-input" id="useChgOpenClose">
-                                            <label class="form-check-label" for="useChgOpenClose">Chg between Open and
+                                            <label class="form-check-label" for="useChgOpenClose">Chg between Open
+                                                and
                                                 Close</label>
                                         </div>
                                         <div class="input-group">
@@ -964,7 +974,8 @@
                                     <div class="mb-3">
                                         <div class="form-check mb-2">
                                             <input type="checkbox" class="form-check-input" id="useChgHighClose">
-                                            <label class="form-check-label" for="useChgHighClose">Chg between High and
+                                            <label class="form-check-label" for="useChgHighClose">Chg between High
+                                                and
                                                 Close</label>
                                         </div>
                                         <div class="input-group">
@@ -988,14 +999,12 @@
                                 data-bs-parent="#configAccordion">
                                 <div class="accordion-body">
                                     <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input"
-                                            id="cancelOnTpPriceBelowMarket">
+                                        <input type="checkbox" class="form-check-input" id="cancelOnTpPriceBelowMarket">
                                         <label class="form-check-label" for="cancelOnTpPriceBelowMarket">
                                             Cancel if TP price is below market price</label>
                                     </div>
                                     <div class="mb-3 form-check">
-                                        <input type="checkbox" class="form-check-input"
-                                            id="cancelOnTpPriceAboveMarket">
+                                        <input type="checkbox" class="form-check-input" id="cancelOnTpPriceAboveMarket">
                                         <label class="form-check-label" for="cancelOnTpPriceAboveMarket">
                                             Cancel if TP price is above market price</label>
                                     </div>
@@ -1003,13 +1012,15 @@
                                         <input type="checkbox" class="form-check-input"
                                             id="cancelOnEntryPriceBelowMarket">
                                         <label class="form-check-label" for="cancelOnEntryPriceBelowMarket">
-                                            Cancel if Entry price is below market price (e.g. Short move away)</label>
+                                            Cancel if Entry price is below market price (e.g. Short move
+                                            away)</label>
                                     </div>
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input"
                                             id="cancelOnEntryPriceAboveMarket">
                                         <label class="form-check-label" for="cancelOnEntryPriceAboveMarket">
-                                            Cancel if Entry price is above market price (e.g. Long move away)</label>
+                                            Cancel if Entry price is above market price (e.g. Long move
+                                            away)</label>
                                     </div>
                                 </div>
                             </div>
