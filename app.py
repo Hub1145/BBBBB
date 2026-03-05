@@ -133,7 +133,8 @@ def update_config():
             'use_add_pos_auto_cal', 'add_pos_recovery_percent', 'add_pos_profit_multiplier',
             'add_pos_gap_threshold', 'add_pos_size_pct', 'add_pos_max_count', 'add_pos_step2_offset',
             'add_pos_gap_offset', 'add_pos_size_pct_offset',
-            'use_add_pos_above_zero', 'use_add_pos_profit_target'
+            'use_add_pos_above_zero', 'use_add_pos_profit_target',
+            'tp_close_limit', 'tp_close_same_as_trigger', 'sl_close_limit', 'sl_close_same_as_trigger'
         ]
 
         # Update current_config with only allowed and present keys from new_config
@@ -295,7 +296,8 @@ def get_status():
 
     # Centralized metric calculation logic (matches bot_engine._emit_socket_updates)
     total_active_trades_count = bot_engine.total_trades_count + len(bot_engine.open_trades)
-    
+    fee_pct = bot_engine.config.get('trade_fee_percentage', 0.08) / 100.0
+
     status = {
         'running': bot_engine.is_running,
         'open_trades': bot_engine.open_trades,
@@ -309,11 +311,17 @@ def get_status():
         'max_allowed_used_display': bot_engine.max_allowed_display,
         'max_amount_display': bot_engine.max_amount_display,
         'trade_fees': bot_engine.trade_fees,
+        'used_fees': sum(bot_engine.position_manager.current_entry_fees.values()),
+        'size_fees': bot_engine.size_amount * fee_pct,
         'net_profit': bot_engine.net_profit,
         'in_position': bot_engine.in_position,
         'position_entry_price': bot_engine.position_entry_price,
         'position_qty': bot_engine.position_qty,
         'position_upl': bot_engine.position_upl,
+        'position_net_pnl': {
+                'long': bot_engine.position_upl.get('long', 0.0) - bot_engine.position_manager.current_entry_fees.get('long', 0.0) - bot_engine.position_manager.realized_loss_this_cycle.get('long', 0.0),
+                'short': bot_engine.position_upl.get('short', 0.0) - bot_engine.position_manager.current_entry_fees.get('short', 0.0) - bot_engine.position_manager.realized_loss_this_cycle.get('short', 0.0)
+        },
         'position_liq': bot_engine.position_manager.position_liq,
         'current_take_profit': bot_engine.current_take_profit,
         'current_stop_loss': bot_engine.current_stop_loss,
@@ -343,6 +351,8 @@ def get_status():
         'size_amount': bot_engine.size_amount,
         'need_add_usdt': getattr(bot_engine, 'need_add_usdt_profit_target', 0.0),
         'need_add_above_zero': getattr(bot_engine, 'need_add_usdt_above_zero', 0.0),
+        'raw_need_add_usdt': bot_engine.raw_need_add_usdt_profit_target,
+        'raw_need_add_above_zero': bot_engine.raw_need_add_usdt_above_zero,
         # Realized profit tracking
         'net_trade_profit': getattr(bot_engine, 'net_trade_profit', 0.0),
         'total_trade_profit': getattr(bot_engine, 'total_trade_profit', 0.0),
@@ -468,6 +478,20 @@ def handle_stop_bot(data=None):
     except Exception as e:
         logging.error(f'Error stopping bot: {str(e)}')
         emit('error', {'message': f'Failed to stop bot: {str(e)}'})
+
+@socketio.on('stop_all')
+def handle_stop_all(data=None):
+    global bot_engine
+    try:
+        if bot_engine:
+            bot_engine.stop_bot() # This sets stop_event and stops WS
+            socketio.emit('bot_status', {'running': False})
+            emit('success', {'message': 'All bot processes stopped completely.'})
+        else:
+            emit('error', {'message': 'Bot engine not initialized.'})
+    except Exception as e:
+        logging.error(f'Error in stop_all: {str(e)}')
+        emit('error', {'message': f'Failed to stop all: {str(e)}'})
 
 @socketio.on('clear_console')
 def handle_clear_console(data=None):

@@ -95,16 +95,31 @@ class OrderManager:
             algo = {"posSide": body.get("posSide", "net")}
             has_algo = False
             if take_profit_price and safe_float(take_profit_price) > 0:
-                algo.update({"tpTriggerPx": str(take_profit_price), "tpOrdPx": "-1", "tpTriggerPxType": "last"})
+                tp_px = "-1" # Default to Market
+                if self.config.get('tp_close_limit'):
+                    if self.config.get('tp_close_same_as_trigger'):
+                        tp_px = str(take_profit_price)
+                    else:
+                        tp_px = str(self.config.get('tp_close_price', '-1'))
+                algo.update({"tpTriggerPx": str(take_profit_price), "tpOrdPx": tp_px, "tpTriggerPxType": "last"})
                 has_algo = True
             if stop_loss_price and safe_float(stop_loss_price) > 0:
-                algo.update({"slTriggerPx": str(stop_loss_price), "slOrdPx": "-1", "slTriggerPxType": "last"})
+                sl_px = "-1" # Default to Market
+                if self.config.get('sl_close_limit'):
+                    if self.config.get('sl_close_same_as_trigger'):
+                        sl_px = str(stop_loss_price)
+                    else:
+                        sl_px = str(self.config.get('sl_close_price', '-1'))
+                algo.update({"slTriggerPx": str(stop_loss_price), "slOrdPx": sl_px, "slTriggerPxType": "last"})
                 has_algo = True
             if has_algo:
                 algo_list.append(algo)
                 body["attachAlgoOrds"] = algo_list
 
-            if verbose: self.engine.log(f"Placing {order_type} {side} order for {qty} {symbol} (tdMode: {body['tdMode']}, posSide: {body['posSide']})")
+            if verbose:
+                self.engine.log(f"Placing {order_type} {side} order for {qty} {symbol} (tdMode: {body['tdMode']}, posSide: {body['posSide']})")
+                if "attachAlgoOrds" in body:
+                    self.engine.log(f"Algo Orders: {body['attachAlgoOrds']}", level="debug")
             res = self.engine.okx_client.request("POST", path, body_dict=body)
             if res and res.get('code') == '0':
                 data = res.get('data', [{}])[0]
@@ -121,7 +136,7 @@ class OrderManager:
                         new_order = {
                             'id': oid,
                             'type': side.upper(),
-                            'posSide': body.get("posSide"),
+                            'posSide': posSide if posSide else body.get("posSide"),
                             'entry_spot_price': price if price else self.engine.latest_trade_price,
                             'stake': qty * (price if price else self.engine.latest_trade_price) * self.engine.product_info.get('contractSize', 1.0),
                             'tp_price': take_profit_price,
@@ -153,6 +168,12 @@ class OrderManager:
             return None
 
     def initiate_entry_batch(self, initial_limit_price, side, batch_size):
+        # Prevent placing new batch if one is already pending for this side to avoid overlap
+        with self.engine.lock:
+            if any(o['id'] in self.pending_entry_ids and o.get('posSide') == side for o in self.open_trades):
+                self.engine.log(f"Entry batch for {side} already pending. Skipping new batch initiation.", level="debug")
+                return
+
         batch_offset = self.config.get('batch_offset', 0)
         self.batch_counter += 1
 
@@ -229,19 +250,25 @@ class OrderManager:
                 self.cancel_algo_orders(self.config['symbol'], side=side)
 
                 if tp_price > 0:
+                    tp_px = "-1"
+                    if self.config.get('tp_close_limit'):
+                        tp_px = str(tp_price) if self.config.get('tp_close_same_as_trigger') else str(self.config.get('tp_close_price', '-1'))
                     body = {
                         "instId": self.config['symbol'], "tdMode": self.config.get('mode', 'cross'),
                         "side": "sell" if side == "long" else "buy", "posSide": side,
                         "ordType": "conditional", "sz": str(qty),
-                        "tpTriggerPx": str(tp_price), "tpOrdPx": "-1"
+                        "tpTriggerPx": str(tp_price), "tpOrdPx": tp_px
                     }
                     self.engine.okx_client.request("POST", "/api/v5/trade/order-algo", body_dict=body)
                 if sl_price > 0:
+                    sl_px = "-1"
+                    if self.config.get('sl_close_limit'):
+                        sl_px = str(sl_price) if self.config.get('sl_close_same_as_trigger') else str(self.config.get('sl_close_price', '-1'))
                     body = {
                         "instId": self.config['symbol'], "tdMode": self.config.get('mode', 'cross'),
                         "side": "sell" if side == "long" else "buy", "posSide": side,
                         "ordType": "conditional", "sz": str(qty),
-                        "slTriggerPx": str(sl_price), "slOrdPx": "-1"
+                        "slTriggerPx": str(sl_price), "slOrdPx": sl_px
                     }
                     self.engine.okx_client.request("POST", "/api/v5/trade/order-algo", body_dict=body)
 

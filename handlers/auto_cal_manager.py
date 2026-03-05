@@ -182,6 +182,13 @@ class AutoCalManager:
                         self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Entry: {self.last_add_price[side]:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
 
                     if gap_trigger or pnl_trigger:
+                        # Move max count check here to avoid log spam
+                        max_adds = int(self.config.get('add_pos_max_count', 10))
+                        if self.auto_add_step_count[side] >= max_adds:
+                            if self.engine.monitoring_tick % 100 == 0:
+                                self.engine.log(f"Auto-Add ({side.upper()}): Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping further additions.", level="info")
+                            continue
+
                         reason = "Gap Threshold" if gap_trigger else "PnL Target"
                         self.engine.log(f"Auto-Add Triggered ({side.upper()}) via {reason}. Executing Add.", level="info")
                         if self._execute_add(side, mkt):
@@ -202,12 +209,6 @@ class AutoCalManager:
         if self.config.get('use_add_pos_above_zero') and self.need_add_above_zero_per_side[side] > 0:
             target_notional = max(target_notional, self.need_add_above_zero_per_side[side])
             is_recovery = True
-
-        # Max adds restriction removed per user request for unrestricted recovery
-        # max_adds = int(self.config.get('add_pos_max_count', 10))
-        # if self.auto_add_step_count[side] >= max_adds:
-        #     self.engine.log(f"Auto-Add: Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping.", level="info")
-        #     return False
 
         current_notional = self.engine.position_manager.position_notional[side]
         # Calculate size based on percentage

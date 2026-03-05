@@ -26,6 +26,9 @@
                 <button class="btn btn-primary" id="startStopBtn">
                     <i class="bi bi-play-fill"></i> <span>Start</span>
                 </button>
+                <button class="btn btn-danger" id="stopAllBtn">
+                    <i class="bi bi-stop-circle-fill"></i> Stop All
+                </button>
                 <button class="btn btn-secondary" id="configBtn">
                     <i class="bi bi-gear-fill"></i> Config
                 </button>
@@ -801,6 +804,44 @@
                                             <option value="oco">OCO TP/SL</option>
                                             <option value="split">Split TP/SL</option>
                                         </select>
+                                    </div>
+                                    <hr>
+                                    <h6 class="fw-bold mb-2 small text-primary">TP/SL Close Mode (Avoid Market Jump)</h6>
+                                    <div class="row g-2 mb-2">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="tpCloseLimit">
+                                                <label class="form-check-label small" for="tpCloseLimit">TP Limit Order</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="tpCloseSameAsTrigger">
+                                                <label class="form-check-label small" for="tpCloseSameAsTrigger">Same as TP Trigger</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2" id="tpClosePriceDiv" style="display:none;">
+                                        <label class="form-label small mb-1">TP Close Price</label>
+                                        <input type="number" class="form-control form-control-sm" id="tpClosePrice" step="0.01">
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="slCloseLimit">
+                                                <label class="form-check-label small" for="slCloseLimit">SL Limit Order</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="slCloseSameAsTrigger">
+                                                <label class="form-check-label small" for="slCloseSameAsTrigger">Same as SL Trigger</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2" id="slClosePriceDiv" style="display:none;">
+                                        <label class="form-label small mb-1">SL Close Price</label>
+                                        <input type="number" class="form-control form-control-sm" id="slClosePrice" step="0.01">
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Min Order Amount</label>

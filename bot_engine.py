@@ -183,12 +183,14 @@ class TradingBotEngine:
 
     def stop(self):
         self.is_running = False
-        self.log("Bot trading stopped")
+        self.log("Bot trading stopped (Auto-Cal monitoring continues)")
 
     def stop_bot(self):
         self.stop_event.set()
         self.is_running = False
-        self.ws_handler.stop()
+        self.log("Shutting down bot completely...")
+        if self.ws_handler:
+            self.ws_handler.stop()
 
     def _mgmt_loop(self):
         while not self.stop_event.is_set():
@@ -254,7 +256,8 @@ class TradingBotEngine:
 
                         # REAL-TIME EXIT CHECK (ALIGNED WITH OKX UPL)
                         # Client wants triggers to match the OKX screen's Unrealized PnL directly.
-                        net_pnl = self.cached_unrealized_pnl
+                        # However, Net PnL must also consider fees and realized losses for recovery modes.
+                        net_pnl = self.net_profit
 
                         triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
                         if triggered:
@@ -290,7 +293,8 @@ class TradingBotEngine:
                         side = o.get('side') # buy/sell
                         pos_side_key = self.position_manager._map_side(raw_side, qty=(sz if side == 'buy' else -sz))
 
-                        # If buy for long or sell for short, it's opening/adding
+                        # Determine if this order is opening or closing
+                        # In One-way mode, buy always adds to long (or reduces short)
                         is_adding = (side == 'buy' and pos_side_key == 'long') or (side == 'sell' and pos_side_key == 'short')
 
                         delta = fill_delta if is_adding else -fill_delta
