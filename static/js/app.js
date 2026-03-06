@@ -236,17 +236,6 @@ function setupEventListeners() {
 
     document.getElementById('testApiKeyBtn').addEventListener('click', testApiKey);
 
-    // removed inline toggleClosePrice
-        const limit = document.getElementById(limitId).checked;
-        const same = document.getElementById(sameId).checked;
-        const div = document.getElementById(divId);
-        if (limit && !same) {
-            div.style.display = 'block';
-        } else {
-            div.style.display = 'none';
-        }
-    };
-
     document.getElementById('tpCloseLimit').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
     document.getElementById('tpCloseSameAsTrigger').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
     document.getElementById('slCloseLimit').addEventListener('change', () => toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv'));
