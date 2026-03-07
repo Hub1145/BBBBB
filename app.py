@@ -134,7 +134,8 @@ def update_config():
             'add_pos_gap_threshold', 'add_pos_size_pct', 'add_pos_max_count', 'add_pos_step2_offset',
             'add_pos_gap_offset', 'add_pos_size_pct_offset',
             'use_add_pos_above_zero', 'use_add_pos_profit_target',
-            'tp_close_limit', 'tp_close_same_as_trigger', 'sl_close_limit', 'sl_close_same_as_trigger'
+            'tp_close_limit', 'tp_close_same_as_trigger', 'tp_close_price',
+            'sl_close_limit', 'sl_close_same_as_trigger', 'sl_close_price'
         ]
 
         # Update current_config with only allowed and present keys from new_config

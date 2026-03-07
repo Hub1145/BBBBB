@@ -1,64 +1,50 @@
-# OKX Trading Bot Audit and Fixes Report
+# Project Audit and Fixes Report: Auto-Cal and Data Handling
 
-This report summarizes the findings and subsequent fixes regarding the Auto-Cal Add Position logic, negative position handling, and data presentation inconsistencies.
+This report summarizes the findings and improvements made to the trading bot's core logic, specifically focusing on the "Auto-Cal Add Position" features and the consistency of data across the platform.
 
-## 1. FIXED: Auto-Cal Add Position (Mode 1 & 2)
+## 1. Position Handling and Negative Value Accuracy
 
-### FIXED: Automatic TP/SL Re-adjustment
-- **The Problem**: After an Auto-Cal addition, the average entry price changed, but the existing TP/SL orders for the position were not updated. This could lead to partial closures or positions never closing.
-- **The Fix**: Implemented a real-time listener for "autocal" order fills. Once an addition is detected, the bot instantly triggers a full TP/SL re-adjustment for the entire position quantity using the new average entry price.
+### Findings:
+* **One-Way Mode Mapping:** In "One-way" (`net_mode`) account configurations, OKX returns position data where the `side` can be `long` or `short`, but the internal logic was not correctly reconciling these against the bot's `in_position` maps when a position was closed or reversed. This led to "ghost" positions appearing on the dashboard or incorrect logic triggers.
+* **Loop Quantity Tracking:** The `update_loop_qty` function was failing to decrement the active loop quantity when a position was reduced by an opposing trade in One-way mode.
+* **Negative Position Logic:** Logic that checked for "negative" positions (short positions) was inconsistent between the Backend (which uses `posSide` and `sz`) and the Frontend (which sometimes relied on signed `sz`).
 
-### Issues with Negative Position Reading
-A bug was identified and fixed in `handlers/position_manager.py` within the `_map_side` method.
+### Fixes:
+* **Robust Side Mapping:** Updated `PositionManager._map_side` to strictly validate position closure. If OKX reports `idx=0` (net mode) and `sz=0`, both 'long' and 'short' internal states are now explicitly cleared.
+* **Cross-Side Reduction:** Fixed `PositionManager.update_loop_qty` to correctly identify when a 'buy' trade reduces a 'short' position (and vice versa) in One-way mode, ensuring the `loop_qty` remains accurate.
 
-- **The Problem**: In `net_mode` (One-way) with `direction: both`, the bot failed to identify the side of a closing trade (qty=0).
-- **The Fix**: Improved `_map_side` to check current active positions when an order has 0 quantity. This ensures `_handle_closure` is called correctly for all sides.
+## 2. Auto-Cal Add Position (Modes 1 & 2)
 
-### FIXED: Broken Loop Quantity Tracking
-- **The Problem**: Closing a `long` position with a `sell` order incorrectly increased the `short` loop quantity in One-way mode.
-- **The Fix**: Implemented logic in `update_loop_qty` to correctly handle cross-side reductions in One-way mode.
+### Findings:
+* **Gap Trigger Logic:** The "Gap" trigger was calculated relative to a local `last_add_price` variable. This meant if the market moved significantly and the position's average entry price shifted, the gap check remained "stuck" to the old price.
+* **Profit Target (Mode 2) Formula:** The trigger for Mode 2 was using `net_profit` (which subtracts fees). However, the recovery calculation formula was designed around `unrealized_pnl` (raw market difference). This mismatch caused the bot to over-add or fail to trigger when expected.
+* **TP/SL Desync:** After an Auto-Cal addition filled, the position's average entry price would change, but the existing Take-Profit and Stop-Loss orders on the exchange remained at their old prices. This prevented the "Exit as a whole" strategy from working correctly.
 
-### FIXED: Max Auto-Add Loops
-- **The Problem**: The `add_pos_max_count` setting was ignored or log-spammed.
-- **The Fix**: Re-enabled and strictly enforced the max steps check in `AutoCalManager`.
+### Fixes:
+* **Average Entry Anchoring:** The gap trigger in `AutoCalManager.check_auto_add` now uses the actual `avgPx` (Average Entry Price) from the position data. This ensures the gap is always relative to the current breakeven point.
+* **Standardized Trigger Metric:** Mode 2 (Profit Target) now consistently uses `unrealized_pnl` for the trigger, matching the user's requested formula: `Unrealized PnL >= Notional * Fee% * Multiplier`.
+* **Real-time TP/SL Refresh:** Implemented a detection mechanism in `bot_engine.py` that flags whenever an "autocal" order fills. The bot now immediately calls `batch_modify_tpsl` to update the TP/SL for the *entire* position based on the new average entry price.
 
-## 2. STANDARDIZED: Fee Usage and Auto-Exit
+## 3. Fee Consistency and Data Presentation
 
-### FIXED: Profit Target Formula
-- **The Problem**: Inconsistencies between calculated targets and actual triggers.
-- **The Fix**: Re-aligned the Mode 2 (Profit Target) trigger to strictly follow the formula: `Unrealized PnL >= Size Notional * Fee% * Multiplier`.
+### Findings:
+* **Inconsistent Definitions:** The terms "Profit", "Net PnL", and "Unrealized PnL" were used interchangeably in several modules, leading to different values appearing on the Dashboard versus those used for safety triggers.
+* **Trade Fee Sync:** The `trade_fee_percentage` set in the UI was not consistently propagated to the `AutoCalManager`, leading to incorrect "Need Add" USDT calculations.
 
-### Actual vs. Estimated Fees
-The platform now consistently presents **Net Profit** (UPL - Actual Fees - Realized Loss) for its primary dashboard metrics, while allowing specific triggers to target Unrealized PnL based on multipliers.
+### Fixes:
+* **Standardized Metrics:**
+    * **Net Profit:** Now defined as `Unrealized PnL - Fees - Realized Loss`. This is the primary metric for the Dashboard and "Above Zero" (Mode 1) triggers.
+    * **Unrealized PnL:** Used for Mode 2 triggers and recovery notional calculations to maintain parity with OKX's interface.
+* **UI/Backend Parity:** Verified that `trade_fee_percentage` is correctly handled by `app.py` and synchronized to the engine on every config update.
 
-| Feature | Status | Method |
-| :--- | :--- | :--- |
-| **Auto-Cal Profit** | Verified | Uses Actual Fees from OKX. |
-| **Net Profit (UI)** | Standardized | matches `UPL - Fees - Loss`. |
-| **Auto-Exit (Mode 2)**| Standardized | Uses `Unrealized PnL` vs. `Notional * Fee% * Mult`. |
+## 4. Stability and Race Conditions
 
-## 3. FIXED: Data Handling & Presentation
+### Findings:
+* **Rapid-Fire Orders:** A race condition existed where the bot could send multiple market addition orders in a single second because the position state hadn't updated yet.
 
-### REST vs. Socket Data Sync
-- **The Problem**: The `/api/status` endpoint was missing critical fields, causing UI flickering.
-- **The Fix**: Updated `app.py` to include `used_fees`, `size_fees`, `raw_need_add_usdt`, and others in the REST response, ensuring perfect parity with WebSocket updates.
+### Fixes:
+* **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates (incrementing step counts *before* the API call returns) to ensure only one addition is processed per side at a time.
+* **OCO Order Support:** Standardized position-level TP/SL to use `oco` (One-Cancels-the-Other) order types, ensuring that if one target is hit, the other is automatically cancelled by the exchange.
 
-## 4. NEW FEATURES: Enhanced Trading Control
-
-### TP/SL Close Mode (Limit Order Support)
-Added 4 new settings to prevent "market jumps" during position closure:
-1.  **TP Close Mode**: Option to use Limit Order instead of Market.
-2.  **TP Close Price**: Option to use same as trigger or a custom price.
-3.  **SL Close Mode**: Option to use Limit Order instead of Market.
-4.  **SL Close Price**: Option to use same as trigger or a custom price.
-
-### "Stop All" Functionality
-- Added a **Stop All** button that completely halts the bot, including all background monitoring loops and WebSocket connections, for a total system freeze.
-
-## 5. Summary of Improvements
-
-1.  **No more Ghost Positions**: Short positions now close correctly in memory.
-2.  **Accurate Loop Budget**: Loop quantity tracking now correctly reflects One-way mode dynamics.
-3.  **Reliable Auto-Exit**: Exits now accurately account for fees and realized losses.
-4.  **Stable UI**: paracm-sync parity between REST and WebSocket eliminates flickering.
-5.  **Professional Order Execution**: Users can now opt for Limit exits to avoid slippage in fast markets.
+## Conclusion
+The platform now handles data consistently by distinguishing between **Net Profit** (realizable cash) and **Unrealized PnL** (market movement). The Auto-Cal additions are now more robust, anchored to the actual position average entry price, and properly synchronized with exchange-side TP/SL orders.

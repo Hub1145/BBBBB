@@ -17,6 +17,7 @@ class AutoCalManager:
         self.auto_add_step_count = {'long': 0, 'short': 0}
         self.last_add_price = {'long': 0.0, 'short': 0.0}
         self.last_order_time = 0
+        self._is_adding = {'long': False, 'short': False}
 
     def calculate_need_add_metrics(self):
         with self.lock:
@@ -159,28 +160,27 @@ class AutoCalManager:
             mkt = self.engine.latest_trade_price
             if not mkt: return
 
-            any_in_pos = False
             for side in ['long', 'short']:
                 if self.engine.in_position[side]:
-                    any_in_pos = True
-                    # Robust initialization of last_add_price
-                    if self.last_add_price[side] == 0:
-                        self.last_add_price[side] = self.engine.position_entry_price[side]
-                        if self.last_add_price[side] == 0: continue
+                    if self._is_adding[side]: continue
+
+                    # Gap logic: Use current average entry price from position
+                    entry = self.engine.position_entry_price[side]
+                    if entry == 0: continue
 
                     gap_threshold = float(self.config.get('add_pos_gap_threshold', 5.0))
                     gap_offset = float(self.config.get('add_pos_gap_offset', 0.0))
                     gap = gap_threshold + (self.auto_add_step_count[side] * gap_offset)
 
                     # Gap = Market Price - Entry Price (for Shorts) or Entry - Market (for Longs)
-                    price_diff = (self.last_add_price[side] - mkt) if side == 'long' else (mkt - self.last_add_price[side])
+                    price_diff = (entry - mkt) if side == 'long' else (mkt - entry)
 
                     # Dual Trigger: Trigger addition if Price Gap Threshold OR PnL Recovery Target (Mode 2) is hit.
                     pnl_trigger = (self.need_add_profit_target_per_side[side] > 0)
                     gap_trigger = (price_diff >= gap)
 
                     if self.engine.monitoring_tick % 10 == 0:
-                        self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Entry: {self.last_add_price[side]:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
+                        self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Avg Entry: {entry:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
 
                     if gap_trigger or pnl_trigger:
                         # Move max count check here to avoid log spam
@@ -192,13 +192,22 @@ class AutoCalManager:
 
                         reason = "Gap Threshold" if gap_trigger else "PnL Target"
                         self.engine.log(f"Auto-Add Triggered ({side.upper()}) via {reason}. Executing Add.", level="info")
-                        if self._execute_add(side, mkt):
-                            # Move last_add_price to current market so next trigger is relative to this add
-                            self.last_add_price[side] = mkt
-                            return
+
+                        # Set adding flag immediately to prevent re-entry
+                        self._is_adding[side] = True
+
+                        # Use a separate thread to execute the add so we don't hold the lock during the API call
+                        threading.Thread(target=self._execute_add_threaded, args=(side, mkt), daemon=True).start()
                 else:
                     self.auto_add_step_count[side] = 0
                     self.last_add_price[side] = 0.0
+
+    def _execute_add_threaded(self, side, price):
+        try:
+            self._execute_add(side, price)
+        finally:
+            with self.lock:
+                self._is_adding[side] = False
 
     def _execute_add(self, side, price):
         # IMPORTANT: Auto-Cal recovery orders bypass budget and min order amount restrictions
@@ -257,11 +266,19 @@ class AutoCalManager:
                 else: tp = round(new_avg_entry - step2, p_prec)
                 self.engine.log(f"Auto-Add Step 2: New Avg Entry Est {new_avg_entry:.4f}, TP set at {tp:.4f} (Offset {step2})")
 
+        # Optimistically update step count and last_order_time before placing to prevent race
+        with self.lock:
+            self.auto_add_step_count[side] += 1
+            self.last_order_time = time.time()
+            self.last_add_price[side] = price
+
         if self.engine.order_manager.place_order(self.config['symbol'], "buy" if side == "long" else "sell", sz,
                                                  order_type="Market", posSide=actual_pos_side, tdMode=actual_mgn_mode,
                                                  take_profit_price=tp, stop_loss_price=sl,
                                                  context='autocal'):
-            self.auto_add_step_count[side] += 1
-            self.last_order_time = time.time()
             return True
+        else:
+            # Revert step count on failure
+            with self.lock:
+                self.auto_add_step_count[side] -= 1
         return False

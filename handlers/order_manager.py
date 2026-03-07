@@ -236,41 +236,61 @@ class OrderManager:
         return res.get('data', []) if res and res.get('code') == '0' else []
 
     def place_position_tpsl(self, side, entry_price):
-        # NOTE: Dynamic TP/SL updates are generally discouraged in favor of setting on order placement.
-        # This method is kept for manual batch updates if triggered via UI.
+        # This method is used to refresh/place TP/SL for an existing position.
         if not entry_price: return
 
         tp_price, sl_price = self._calculate_tpsl_prices(side, entry_price)
+        qty = abs(self.engine.position_qty[side])
 
-        if tp_price > 0 or sl_price > 0:
-            qty = abs(self.engine.position_qty[side])
-            if qty > 0:
-                self.engine.log(f"Placing dynamic TP/SL for {side} position: TP={tp_price}, SL={sl_price}")
-                # Cancel existing for this side first to prevent duplicates
-                self.cancel_algo_orders(self.config['symbol'], side=side)
+        if qty > 0 and (tp_price > 0 or sl_price > 0):
+            self.engine.log(f"Placing/Refreshing TP/SL for {side} position: TP={tp_price}, SL={sl_price} (Qty: {qty})")
 
-                if tp_price > 0:
-                    tp_px = "-1"
-                    if self.config.get('tp_close_limit'):
-                        tp_px = str(tp_price) if self.config.get('tp_close_same_as_trigger') else str(self.config.get('tp_close_price', '-1'))
-                    body = {
-                        "instId": self.config['symbol'], "tdMode": self.config.get('mode', 'cross'),
-                        "side": "sell" if side == "long" else "buy", "posSide": side,
-                        "ordType": "conditional", "sz": str(qty),
-                        "tpTriggerPx": str(tp_price), "tpOrdPx": tp_px
-                    }
-                    self.engine.okx_client.request("POST", "/api/v5/trade/order-algo", body_dict=body)
-                if sl_price > 0:
-                    sl_px = "-1"
-                    if self.config.get('sl_close_limit'):
-                        sl_px = str(sl_price) if self.config.get('sl_close_same_as_trigger') else str(self.config.get('sl_close_price', '-1'))
-                    body = {
-                        "instId": self.config['symbol'], "tdMode": self.config.get('mode', 'cross'),
-                        "side": "sell" if side == "long" else "buy", "posSide": side,
-                        "ordType": "conditional", "sz": str(qty),
-                        "slTriggerPx": str(sl_price), "slOrdPx": sl_px
-                    }
-                    self.engine.okx_client.request("POST", "/api/v5/trade/order-algo", body_dict=body)
+            # Cancel existing for this side first to avoid conflicts
+            self.cancel_algo_orders(self.config['symbol'], side=side)
+
+            # Determine correct posSide based on account mode
+            pos_mode = self.config.get('okx_pos_mode', 'net_mode')
+            actual_pos_side = side if pos_mode == 'long_short_mode' else 'net'
+
+            body = {
+                "instId": self.config['symbol'],
+                "tdMode": self.config.get('mode', 'cross'),
+                "side": "sell" if side == "long" else "buy",
+                "posSide": actual_pos_side,
+                "sz": str(qty),
+                "reduceOnly": "true" # Ensure it only reduces the position
+            }
+
+            if tp_price > 0 and sl_price > 0:
+                # Use OCO to link TP and SL
+                body["ordType"] = "oco"
+                tp_px = "-1"
+                if self.config.get('tp_close_limit'):
+                    tp_px = str(tp_price) if self.config.get('tp_close_same_as_trigger') else str(self.config.get('tp_close_price', '-1'))
+                sl_px = "-1"
+                if self.config.get('sl_close_limit'):
+                    sl_px = str(sl_price) if self.config.get('sl_close_same_as_trigger') else str(self.config.get('sl_close_price', '-1'))
+
+                body.update({
+                    "tpTriggerPx": str(tp_price), "tpOrdPx": tp_px, "tpTriggerPxType": "last",
+                    "slTriggerPx": str(sl_price), "slOrdPx": sl_px, "slTriggerPxType": "last"
+                })
+            elif tp_price > 0:
+                body["ordType"] = "conditional"
+                tp_px = "-1"
+                if self.config.get('tp_close_limit'):
+                    tp_px = str(tp_price) if self.config.get('tp_close_same_as_trigger') else str(self.config.get('tp_close_price', '-1'))
+                body.update({"tpTriggerPx": str(tp_price), "tpOrdPx": tp_px, "tpTriggerPxType": "last"})
+            elif sl_price > 0:
+                body["ordType"] = "conditional"
+                sl_px = "-1"
+                if self.config.get('sl_close_limit'):
+                    sl_px = str(sl_price) if self.config.get('sl_close_same_as_trigger') else str(self.config.get('sl_close_price', '-1'))
+                body.update({"slTriggerPx": str(sl_price), "slOrdPx": sl_px, "slTriggerPxType": "last"})
+
+            res = self.engine.okx_client.request("POST", "/api/v5/trade/order-algo", body_dict=body)
+            if res and res.get('code') != '0':
+                self.engine.log(f"Failed to place position TP/SL: {res.get('msg')} (Code: {res.get('code')})", level="error")
 
     def cancel_algo_orders(self, symbol, side=None):
         algos = self.fetch_algo_orders(symbol)
