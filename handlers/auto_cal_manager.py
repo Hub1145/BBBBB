@@ -229,18 +229,27 @@ class AutoCalManager:
         sz_pct_notional = current_notional * pct
         final_notional = max(sz_pct_notional, target_notional)
 
-        # Enforce safety limit: Auto-Cal additions MUST NOT exceed available capacity
-        # This addresses Point 1 (why 382k order happened)
-        remaining = self.engine.remaining_amount_notional
-        if final_notional > remaining:
-            self.engine.log(f"Auto-Add ({side.upper()}): Reducing requested add amount {final_notional:.2f} to fit remaining capacity {remaining:.2f}", level="info")
-            final_notional = remaining
+        # Point 1: Safety Limit for Auto-Cal Additions
+        # Auto-Cal additions are independent of the loop "Remaining Amount" and "Rate Divisor".
+        # However, they MUST NOT push the total position notional beyond the absolute "Max Allowed * Leverage" limit.
+        max_allowed = float(self.config.get('max_allowed_used', 0.0))
+        leverage = float(self.config.get('leverage', 1.0))
+        absolute_max_notional = max_allowed * leverage
+
+        # Current notional across all positions (or just this side if restricted to hedge mode)
+        # We cap relative to the absolute total cap to prevent account liquidation
+        total_used_notional = self.engine.position_manager.used_amount_notional
+        available_absolute_capacity = max(0.0, absolute_max_notional - total_used_notional)
+
+        if final_notional > available_absolute_capacity:
+            self.engine.log(f"Auto-Add ({side.upper()}): Reducing requested add amount {final_notional:.2f} to fit absolute account capacity {available_absolute_capacity:.2f} (Total Cap: {absolute_max_notional:.2f})", level="info")
+            final_notional = available_absolute_capacity
 
         if final_notional <= 0:
-            self.engine.log(f"Auto-Add ({side.upper()}): No capacity remaining for additions. Skipping.", level="info")
+            self.engine.log(f"Auto-Add ({side.upper()}): No absolute capacity remaining for additions. Skipping.", level="info")
             return False
 
-        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Capacity-Limited Final {final_notional:.2f}")
+        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Absolute Capacity-Limited Final {final_notional:.2f}")
 
         contract_multiplier = safe_float(self.engine.product_info.get('contractSize', 1.0))
         sz = final_notional / (price * contract_multiplier)

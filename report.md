@@ -54,8 +54,8 @@ This report summarizes the findings and improvements made to the trading bot's c
 * **Limit Clarity:** The "Max Amount" displayed on the dashboard was calculated simply as `Max Allowed * Leverage`, ignoring the `Rate Divisor`, which led to confusion about the actual available capacity.
 
 ### Fixes:
-* **Hard Capacity Caps:** The `AutoCalManager` now strictly enforces that any addition must fit within the `remaining_amount_notional`. It will automatically truncate recovery orders to stay within your defined budget.
-* **Recovery Math Hardening:** Added a minimum 0.5% safety buffer to the recovery denominator to prevent mathematical explosions.
+* **Absolute Capacity Caps:** Auto-Cal additions are now decoupled from the loop-specific "Remaining Amount" and "Rate Divisor". Instead, they are safety-capped by the **Absolute Notional Limit** `(Max Allowed * Leverage)`. This allows Auto-Cal to execute recovery trades independently of strategy loop restrictions while still protecting the account from over-exposure.
+* **Mathematical Hardening (The "382k Fix"):** In the recovery formula `Add Amount = (-UPL / (Rec% - Target%)) - Notional`, if the Recovery % is very close to your Target Profit %, the denominator becomes nearly zero. This causes the required addition amount to "explode" into hundreds of thousands of dollars. We have now enforced a **minimum 0.5% safety gap** in the denominator. This ensures that even with aggressive settings, the bot will never calculate a recovery amount that exceeds reasonable account limits.
 * **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction. This allows the batch logic to correctly identify "In-Flight" orders and stop at the exact batch size requested.
 * **Accurate Capacity Display:** The "Max Notional Cap" on the dashboard now correctly accounts for the `Rate Divisor` using the formula: `(Max Equity Limit / Rate) * Leverage`.
 
