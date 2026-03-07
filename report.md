@@ -4,6 +4,10 @@ This report summarizes the findings and subsequent fixes regarding the Auto-Cal 
 
 ## 1. FIXED: Auto-Cal Add Position (Mode 1 & 2)
 
+### FIXED: Automatic TP/SL Re-adjustment
+- **The Problem**: After an Auto-Cal addition, the average entry price changed, but the existing TP/SL orders for the position were not updated. This could lead to partial closures or positions never closing.
+- **The Fix**: Implemented a real-time listener for "autocal" order fills. Once an addition is detected, the bot instantly triggers a full TP/SL re-adjustment for the entire position quantity using the new average entry price.
+
 ### Issues with Negative Position Reading
 A bug was identified and fixed in `handlers/position_manager.py` within the `_map_side` method.
 
@@ -20,14 +24,18 @@ A bug was identified and fixed in `handlers/position_manager.py` within the `_ma
 
 ## 2. STANDARDIZED: Fee Usage and Auto-Exit
 
+### FIXED: Profit Target Formula
+- **The Problem**: Inconsistencies between calculated targets and actual triggers.
+- **The Fix**: Re-aligned the Mode 2 (Profit Target) trigger to strictly follow the formula: `Unrealized PnL >= Size Notional * Fee% * Multiplier`.
+
 ### Actual vs. Estimated Fees
-The platform now consistently uses **Net Profit** (UPL - Actual Fees - Realized Loss) for its primary exit triggers.
+The platform now consistently presents **Net Profit** (UPL - Actual Fees - Realized Loss) for its primary dashboard metrics, while allowing specific triggers to target Unrealized PnL based on multipliers.
 
 | Feature | Status | Method |
 | :--- | :--- | :--- |
 | **Auto-Cal Profit** | Verified | Uses Actual Fees from OKX. |
 | **Net Profit (UI)** | Standardized | matches `UPL - Fees - Loss`. |
-| **Auto-Exit Trigger** | Fixed | Now uses `net_profit` instead of raw UPL. |
+| **Auto-Exit (Mode 2)**| Standardized | Uses `Unrealized PnL` vs. `Notional * Fee% * Mult`. |
 
 ## 3. FIXED: Data Handling & Presentation
 

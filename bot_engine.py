@@ -208,8 +208,6 @@ class TradingBotEngine:
                     self.order_manager.sync_open_orders(self.config['symbol'])
                     self.order_manager.check_unfilled_timeouts()
 
-                # Dynamic TP/SL updates removed per client request to set them on order placement
-
                 # 2. Auto-Add / Margin (Polling remains for these as they are gap-based)
                 if not self.authoritative_exit_in_progress and self.monitoring_tick % 5 == 0:
                     self.auto_cal_manager.calculate_need_add_metrics()
@@ -224,6 +222,12 @@ class TradingBotEngine:
                         self.strategy_manager.execute_strategy()
                     self.log(f"Waiting for next loop ({loop_interval}s)")
                     self.log("-" * 46)
+
+                # 3. Post-Add TP/SL Sync
+                if self._should_update_tpsl:
+                    self.log("Refreshing position TP/SL after Auto-Cal Add fill.")
+                    self.order_manager.batch_modify_tpsl(self.config['symbol'])
+                    self._should_update_tpsl = False
 
                 # 4. WebSocket Health Check (Fallback)
                 if self.monitoring_tick % 30 == 0:
@@ -285,6 +289,14 @@ class TradingBotEngine:
 
                     # Track loop quantity based on order context
                     context = self.order_manager.order_contexts.get(ord_id)
+
+                    # Trigger TP/SL readjustment if an autocal add order is filled
+                    if context == 'autocal' and acc_fill > prev_fill and state in ['filled', 'partially_filled']:
+                        side_key = self.position_manager._map_side(raw_side, qty=(sz if o.get('side') == 'buy' else -sz))
+                        self.log(f"Auto-Cal Add Order Filled. Triggering TP/SL readjustment for {side_key} position.", level="info")
+                        # We defer the actual placement slightly to allow position to sync or use the last known avgPx
+                        self._should_update_tpsl = True
+
                     if context == 'loop' and fill_delta > 0:
                         # Update tracked fill size
                         self.order_manager.order_fills[ord_id] = acc_fill

@@ -96,13 +96,14 @@ class AutoCalManager:
         if self.config.get('use_add_pos_profit_target'):
             mult = float(self.config.get('add_pos_profit_multiplier', 1.5))
             # Match user math: Target = Current Size * Fee% * Multiplier
+            # Use Unrealized PnL (cached_unrealized_pnl) for this trigger as requested
             target = notional * fee_pct * mult
 
             if self.engine.monitoring_tick % 10 == 0:
-                self.engine.log(f"Auto-Exit Check (Mode 2): PnL=${net_pnl:.2f}, Target=${target:.2f} ({mult}x Fees)", level="info")
+                self.engine.log(f"Auto-Exit Check (Mode 2): Unrealized PnL=${unrealized_pnl:.2f}, Target=${target:.2f} ({mult}x Fees)", level="info")
 
-            if net_pnl >= target:
-                return True, f"Profit Target Met (Mode 2: PnL > {target:.2f})"
+            if unrealized_pnl >= target:
+                return True, f"Profit Target Met (Mode 2: Unrealized PnL > {target:.2f})"
 
         # 3. Auto-Manual Threshold
         if self.config.get('use_pnl_auto_manual'):
