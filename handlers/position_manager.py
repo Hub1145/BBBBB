@@ -151,6 +151,12 @@ class PositionManager:
         if raw_side == 'net' or not raw_side:
             if qty > 0: return 'long'
             if qty < 0: return 'short'
+
+            # If qty is 0, we are likely closing.
+            # Check if we are currently in a position to determine the side.
+            if self.in_position['long'] and not self.in_position['short']: return 'long'
+            if self.in_position['short'] and not self.in_position['long']: return 'short'
+
         side_key = self.config.get('direction', 'long')
         return 'long' if side_key == 'both' else side_key
 
@@ -161,7 +167,36 @@ class PositionManager:
 
     def update_loop_qty(self, side, delta):
         with self.engine.lock:
-            self.loop_qty[side] = max(0.0, self.loop_qty[side] + delta)
+            if self.config.get('okx_pos_mode', 'net_mode') == 'net_mode':
+                # In One-way mode, trades on one side affect the other side
+                other_side = 'short' if side == 'long' else 'long'
+
+                if delta > 0: # Adding to 'side'
+                    # First reduce the other side if it exists
+                    if self.loop_qty[other_side] > 0:
+                        reduction = min(self.loop_qty[other_side], delta)
+                        self.loop_qty[other_side] -= reduction
+                        delta -= reduction
+
+                    # Then add the rest to 'side'
+                    self.loop_qty[side] += delta
+                else: # Reducing 'side'
+                    abs_delta = abs(delta)
+                    # First reduce 'side'
+                    reduction = min(self.loop_qty[side], abs_delta)
+                    self.loop_qty[side] -= reduction
+                    abs_delta -= reduction
+
+                    # Then "add" to the other side (meaning increasing its negative-ness if it was a reduction of other side)
+                    # But delta < 0 for update_loop_qty usually means reduction of that side's intended position.
+                    # This logic gets complex if we allow mixed context orders.
+                    # For now, let's just stick to the simple reduction.
+                    if abs_delta > 0:
+                        self.loop_qty[other_side] += abs_delta
+            else:
+                # Hedge mode: sides are independent
+                self.loop_qty[side] = max(0.0, self.loop_qty[side] + delta)
+
             # Re-sync used_amount_notional for UI
             contract_size = safe_float(self.engine.product_info.get('contractSize', 1.0))
 

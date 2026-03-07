@@ -55,6 +55,12 @@ function setupEventListeners() {
         updateThemeIcon(theme);
     });
 
+    document.getElementById('stopAllBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to STOP ALL? This will shut down the bot completely, including background monitoring.')) {
+            socket.emit('stop_all');
+        }
+    });
+
     document.getElementById('startStopBtn').addEventListener('click', () => {
         const btn = document.getElementById('startStopBtn');
         btn.disabled = true;
@@ -229,6 +235,22 @@ function setupEventListeners() {
     });
 
     document.getElementById('testApiKeyBtn').addEventListener('click', testApiKey);
+
+    document.getElementById('tpCloseLimit').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
+    document.getElementById('tpCloseSameAsTrigger').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
+    document.getElementById('slCloseLimit').addEventListener('change', () => toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv'));
+    document.getElementById('slCloseSameAsTrigger').addEventListener('change', () => toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv'));
+}
+
+function toggleClosePrice(limitId, sameId, divId) {
+    const limit = document.getElementById(limitId).checked;
+    const same = document.getElementById(sameId).checked;
+    const div = document.getElementById(divId);
+    if (limit && !same) {
+        div.style.display = 'block';
+    } else {
+        div.style.display = 'none';
+    }
 }
 
 function toggleCandlestickInputs() {
@@ -390,7 +412,7 @@ function setupSocketListeners() {
 }
 
 function updateBotStatus(running) {
-    // If we are currently transitioning (Starting/Stopping), don't let 
+    // If we are currently transitioning (Starting/Stopping), don't let
     // early status polls from background threads flicker the UI back.
     // Only accept the update if it matches the EXPECTED transition outcome.
     if (isTransitioning) {
@@ -1244,6 +1266,16 @@ function loadConfigToModal() {
     safeSetVal('candlestickTimeframe', currentConfig.candlestick_timeframe);
     safeSetVal('okxPosMode', currentConfig.okx_pos_mode || 'net_mode');
 
+    safeSetChecked('tpCloseLimit', currentConfig.tp_close_limit);
+    safeSetChecked('tpCloseSameAsTrigger', currentConfig.tp_close_same_as_trigger);
+    safeSetChecked('slCloseLimit', currentConfig.sl_close_limit);
+    safeSetChecked('slCloseSameAsTrigger', currentConfig.sl_close_same_as_trigger);
+    safeSetVal('tpClosePrice', currentConfig.tp_close_price || 0);
+    safeSetVal('slClosePrice', currentConfig.sl_close_price || 0);
+
+    toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv');
+    toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv');
+
     // PnL Auto-Cancel (Modal Sync -> Maps to Auto-Manual Profit)
     safeSetChecked('usePnlAutoCancelModal', currentConfig.use_pnl_auto_manual || false);
     safeSetVal('pnlAutoCancelThresholdModal', currentConfig.pnl_auto_manual_threshold || 100.0);
@@ -1330,6 +1362,13 @@ async function saveConfig() {
 
         candlestick_timeframe: document.getElementById('candlestickTimeframe').value,
         okx_pos_mode: document.getElementById('okxPosMode').value,
+
+        tp_close_limit: document.getElementById('tpCloseLimit').checked,
+        tp_close_same_as_trigger: document.getElementById('tpCloseSameAsTrigger').checked,
+        sl_close_limit: document.getElementById('slCloseLimit').checked,
+        sl_close_same_as_trigger: document.getElementById('slCloseSameAsTrigger').checked,
+        tp_close_price: parseFloat(document.getElementById('tpClosePrice').value || 0),
+        sl_close_price: parseFloat(document.getElementById('slClosePrice').value || 0),
 
         // PnL Auto-Cancel (New Dual Mode - Unified with Modal)
         // If modal inputs exist, use them. Otherwise use dashboard/current config.

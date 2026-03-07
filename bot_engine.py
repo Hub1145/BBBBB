@@ -99,11 +99,14 @@ class TradingBotEngine:
         capacity = (max_allowed / rate_divisor) * leverage
         return max(0.0, capacity - self.used_amount_notional)
     @property
-    def max_allowed_display(self): return self.config.get('max_allowed_used', 0.0)
+    def max_allowed_display(self): return float(self.config.get('max_allowed_used', 0.0))
     @property
     def max_amount_display(self):
+        # Point 3: Clarity on Max Amount.
+        # Max Amount (Notional Cap) = (Max Allowed / Rate) * Leverage
         leverage = safe_float(self.config.get('leverage', 1), 1.0)
-        return self.max_allowed_display * leverage
+        rate = max(1.0, float(self.config.get('rate_divisor', 1.0)))
+        return (self.max_allowed_display / rate) * leverage
     @property
     def net_profit(self):
         # Sum of net_pnl for all active positions (UPL - Fees - Cycle Losses)
@@ -183,12 +186,14 @@ class TradingBotEngine:
 
     def stop(self):
         self.is_running = False
-        self.log("Bot trading stopped")
+        self.log("Bot trading stopped (Auto-Cal monitoring continues)")
 
     def stop_bot(self):
         self.stop_event.set()
         self.is_running = False
-        self.ws_handler.stop()
+        self.log("Shutting down bot completely...")
+        if self.ws_handler:
+            self.ws_handler.stop()
 
     def _mgmt_loop(self):
         while not self.stop_event.is_set():
@@ -206,8 +211,6 @@ class TradingBotEngine:
                     self.order_manager.sync_open_orders(self.config['symbol'])
                     self.order_manager.check_unfilled_timeouts()
 
-                # Dynamic TP/SL updates removed per client request to set them on order placement
-
                 # 2. Auto-Add / Margin (Polling remains for these as they are gap-based)
                 if not self.authoritative_exit_in_progress and self.monitoring_tick % 5 == 0:
                     self.auto_cal_manager.calculate_need_add_metrics()
@@ -222,6 +225,12 @@ class TradingBotEngine:
                         self.strategy_manager.execute_strategy()
                     self.log(f"Waiting for next loop ({loop_interval}s)")
                     self.log("-" * 46)
+
+                # 3. Post-Add TP/SL Sync
+                if self._should_update_tpsl:
+                    self.log("Refreshing position TP/SL after Auto-Cal Add fill.")
+                    self.order_manager.batch_modify_tpsl(self.config['symbol'])
+                    self._should_update_tpsl = False
 
                 # 4. WebSocket Health Check (Fallback)
                 if self.monitoring_tick % 30 == 0:
@@ -254,7 +263,8 @@ class TradingBotEngine:
 
                         # REAL-TIME EXIT CHECK (ALIGNED WITH OKX UPL)
                         # Client wants triggers to match the OKX screen's Unrealized PnL directly.
-                        net_pnl = self.cached_unrealized_pnl
+                        # However, Net PnL must also consider fees and realized losses for recovery modes.
+                        net_pnl = self.net_profit
 
                         triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
                         if triggered:
@@ -282,6 +292,14 @@ class TradingBotEngine:
 
                     # Track loop quantity based on order context
                     context = self.order_manager.order_contexts.get(ord_id)
+
+                    # Trigger TP/SL readjustment if an autocal add order is filled
+                    if context == 'autocal' and acc_fill > prev_fill and state in ['filled', 'partially_filled']:
+                        side_key = self.position_manager._map_side(raw_side, qty=(sz if o.get('side') == 'buy' else -sz))
+                        self.log(f"Auto-Cal Add Order Filled. Triggering TP/SL readjustment for {side_key} position.", level="info")
+                        # We defer the actual placement slightly to allow position to sync or use the last known avgPx
+                        self._should_update_tpsl = True
+
                     if context == 'loop' and fill_delta > 0:
                         # Update tracked fill size
                         self.order_manager.order_fills[ord_id] = acc_fill
@@ -290,7 +308,8 @@ class TradingBotEngine:
                         side = o.get('side') # buy/sell
                         pos_side_key = self.position_manager._map_side(raw_side, qty=(sz if side == 'buy' else -sz))
 
-                        # If buy for long or sell for short, it's opening/adding
+                        # Determine if this order is opening or closing
+                        # In One-way mode, buy always adds to long (or reduces short)
                         is_adding = (side == 'buy' and pos_side_key == 'long') or (side == 'sell' and pos_side_key == 'short')
 
                         delta = fill_delta if is_adding else -fill_delta

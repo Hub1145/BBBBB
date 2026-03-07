@@ -17,6 +17,7 @@ class AutoCalManager:
         self.auto_add_step_count = {'long': 0, 'short': 0}
         self.last_add_price = {'long': 0.0, 'short': 0.0}
         self.last_order_time = 0
+        self._is_adding = {'long': False, 'short': False}
 
     def calculate_need_add_metrics(self):
         with self.lock:
@@ -42,8 +43,8 @@ class AutoCalManager:
 
         # CLIENT FORMULA: Target UPL = Notional * fee_pct * multiplier
         surplus_target = fee_pct * mult
-        gain_on_rec = rec - surplus_target
-        if gain_on_rec <= 0: gain_on_rec = 0.0001
+        # Increased minimum gain to prevent division by near-zero causing massive orders
+        gain_on_rec = max(0.005, rec - surplus_target)
 
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -96,13 +97,14 @@ class AutoCalManager:
         if self.config.get('use_add_pos_profit_target'):
             mult = float(self.config.get('add_pos_profit_multiplier', 1.5))
             # Match user math: Target = Current Size * Fee% * Multiplier
+            # Use Unrealized PnL (cached_unrealized_pnl) for this trigger as requested
             target = notional * fee_pct * mult
 
             if self.engine.monitoring_tick % 10 == 0:
-                self.engine.log(f"Auto-Exit Check (Mode 2): PnL=${net_pnl:.2f}, Target=${target:.2f} ({mult}x Fees)", level="info")
+                self.engine.log(f"Auto-Exit Check (Mode 2): Unrealized PnL=${unrealized_pnl:.2f}, Target=${target:.2f} ({mult}x Fees)", level="info")
 
-            if net_pnl >= target:
-                return True, f"Profit Target Met (Mode 2: PnL > {target:.2f})"
+            if unrealized_pnl >= target:
+                return True, f"Profit Target Met (Mode 2: Unrealized PnL > {target:.2f})"
 
         # 3. Auto-Manual Threshold
         if self.config.get('use_pnl_auto_manual'):
@@ -158,39 +160,54 @@ class AutoCalManager:
             mkt = self.engine.latest_trade_price
             if not mkt: return
 
-            any_in_pos = False
             for side in ['long', 'short']:
                 if self.engine.in_position[side]:
-                    any_in_pos = True
-                    # Robust initialization of last_add_price
-                    if self.last_add_price[side] == 0:
-                        self.last_add_price[side] = self.engine.position_entry_price[side]
-                        if self.last_add_price[side] == 0: continue
+                    if self._is_adding[side]: continue
+
+                    # Gap logic: Use current average entry price from position
+                    entry = self.engine.position_entry_price[side]
+                    if entry == 0: continue
 
                     gap_threshold = float(self.config.get('add_pos_gap_threshold', 5.0))
                     gap_offset = float(self.config.get('add_pos_gap_offset', 0.0))
                     gap = gap_threshold + (self.auto_add_step_count[side] * gap_offset)
 
                     # Gap = Market Price - Entry Price (for Shorts) or Entry - Market (for Longs)
-                    price_diff = (self.last_add_price[side] - mkt) if side == 'long' else (mkt - self.last_add_price[side])
+                    price_diff = (entry - mkt) if side == 'long' else (mkt - entry)
 
                     # Dual Trigger: Trigger addition if Price Gap Threshold OR PnL Recovery Target (Mode 2) is hit.
                     pnl_trigger = (self.need_add_profit_target_per_side[side] > 0)
                     gap_trigger = (price_diff >= gap)
 
                     if self.engine.monitoring_tick % 10 == 0:
-                        self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Entry: {self.last_add_price[side]:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
+                        self.engine.log(f"Auto-Add Check ({side.upper()}): Gap={price_diff:.2f}/{gap:.2f} (Avg Entry: {entry:.2f}, Mark: {mkt:.2f}), PnL-Trigger={pnl_trigger}", level="info")
 
                     if gap_trigger or pnl_trigger:
+                        # Move max count check here to avoid log spam
+                        max_adds = int(self.config.get('add_pos_max_count', 10))
+                        if self.auto_add_step_count[side] >= max_adds:
+                            if self.engine.monitoring_tick % 100 == 0:
+                                self.engine.log(f"Auto-Add ({side.upper()}): Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping further additions.", level="info")
+                            continue
+
                         reason = "Gap Threshold" if gap_trigger else "PnL Target"
                         self.engine.log(f"Auto-Add Triggered ({side.upper()}) via {reason}. Executing Add.", level="info")
-                        if self._execute_add(side, mkt):
-                            # Move last_add_price to current market so next trigger is relative to this add
-                            self.last_add_price[side] = mkt
-                            return
+
+                        # Set adding flag immediately to prevent re-entry
+                        self._is_adding[side] = True
+
+                        # Use a separate thread to execute the add so we don't hold the lock during the API call
+                        threading.Thread(target=self._execute_add_threaded, args=(side, mkt), daemon=True).start()
                 else:
                     self.auto_add_step_count[side] = 0
                     self.last_add_price[side] = 0.0
+
+    def _execute_add_threaded(self, side, price):
+        try:
+            self._execute_add(side, price)
+        finally:
+            with self.lock:
+                self._is_adding[side] = False
 
     def _execute_add(self, side, price):
         # IMPORTANT: Auto-Cal recovery orders bypass budget and min order amount restrictions
@@ -203,12 +220,6 @@ class AutoCalManager:
             target_notional = max(target_notional, self.need_add_above_zero_per_side[side])
             is_recovery = True
 
-        # Max adds restriction removed per user request for unrestricted recovery
-        # max_adds = int(self.config.get('add_pos_max_count', 10))
-        # if self.auto_add_step_count[side] >= max_adds:
-        #     self.engine.log(f"Auto-Add: Max steps reached ({self.auto_add_step_count[side]}/{max_adds}). Skipping.", level="info")
-        #     return False
-
         current_notional = self.engine.position_manager.position_notional[side]
         # Calculate size based on percentage
         pct_base = float(self.config.get('add_pos_size_pct', 5.0))
@@ -218,10 +229,27 @@ class AutoCalManager:
         sz_pct_notional = current_notional * pct
         final_notional = max(sz_pct_notional, target_notional)
 
-        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Final {final_notional:.2f}")
+        # Point 1: Safety Limit for Auto-Cal Additions
+        # Auto-Cal additions are independent of the loop "Remaining Amount" and "Rate Divisor".
+        # However, they MUST NOT push the total position notional beyond the absolute "Max Allowed * Leverage" limit.
+        max_allowed = float(self.config.get('max_allowed_used', 0.0))
+        leverage = float(self.config.get('leverage', 1.0))
+        absolute_max_notional = max_allowed * leverage
 
-        # Auto-Cal Add Position should open trade independent of the Used and Remaining
-        self.engine.log(f"Auto-Cal Add ({side.upper()}): Bypassing Strategy Loop budget constraints (Current Loop Used: ${self.engine.position_manager.used_amount_notional:.2f})", level="debug")
+        # Current notional across all positions (or just this side if restricted to hedge mode)
+        # We cap relative to the absolute total cap to prevent account liquidation
+        total_used_notional = self.engine.position_manager.used_amount_notional
+        available_absolute_capacity = max(0.0, absolute_max_notional - total_used_notional)
+
+        if final_notional > available_absolute_capacity:
+            self.engine.log(f"Auto-Add ({side.upper()}): Reducing requested add amount {final_notional:.2f} to fit absolute account capacity {available_absolute_capacity:.2f} (Total Cap: {absolute_max_notional:.2f})", level="info")
+            final_notional = available_absolute_capacity
+
+        if final_notional <= 0:
+            self.engine.log(f"Auto-Add ({side.upper()}): No absolute capacity remaining for additions. Skipping.", level="info")
+            return False
+
+        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Absolute Capacity-Limited Final {final_notional:.2f}")
 
         contract_multiplier = safe_float(self.engine.product_info.get('contractSize', 1.0))
         sz = final_notional / (price * contract_multiplier)
@@ -255,11 +283,19 @@ class AutoCalManager:
                 else: tp = round(new_avg_entry - step2, p_prec)
                 self.engine.log(f"Auto-Add Step 2: New Avg Entry Est {new_avg_entry:.4f}, TP set at {tp:.4f} (Offset {step2})")
 
+        # Optimistically update step count and last_order_time before placing to prevent race
+        with self.lock:
+            self.auto_add_step_count[side] += 1
+            self.last_order_time = time.time()
+            self.last_add_price[side] = price
+
         if self.engine.order_manager.place_order(self.config['symbol'], "buy" if side == "long" else "sell", sz,
                                                  order_type="Market", posSide=actual_pos_side, tdMode=actual_mgn_mode,
                                                  take_profit_price=tp, stop_loss_price=sl,
                                                  context='autocal'):
-            self.auto_add_step_count[side] += 1
-            self.last_order_time = time.time()
             return True
+        else:
+            # Revert step count on failure
+            with self.lock:
+                self.auto_add_step_count[side] -= 1
         return False
