@@ -99,11 +99,14 @@ class TradingBotEngine:
         capacity = (max_allowed / rate_divisor) * leverage
         return max(0.0, capacity - self.used_amount_notional)
     @property
-    def max_allowed_display(self): return self.config.get('max_allowed_used', 0.0)
+    def max_allowed_display(self): return float(self.config.get('max_allowed_used', 0.0))
     @property
     def max_amount_display(self):
+        # Point 3: Clarity on Max Amount.
+        # Max Amount (Notional Cap) = (Max Allowed / Rate) * Leverage
         leverage = safe_float(self.config.get('leverage', 1), 1.0)
-        return self.max_allowed_display * leverage
+        rate = max(1.0, float(self.config.get('rate_divisor', 1.0)))
+        return (self.max_allowed_display / rate) * leverage
     @property
     def net_profit(self):
         # Sum of net_pnl for all active positions (UPL - Fees - Cycle Losses)

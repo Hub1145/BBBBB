@@ -328,11 +328,18 @@ class OrderManager:
                     elapsed = (now_ms - c_time) / 1000
                     time_left = max(0, int(limit - elapsed))
 
+                # Normalize posSide for One-way mode consistency
+                raw_side = o.get('posSide', 'net')
+                mapped_side = raw_side
+                if raw_side == 'net' or not raw_side:
+                    # In net mode, buy=long, sell=short for entry tracking
+                    mapped_side = 'long' if o.get('side') == 'buy' else 'short'
+
                 # Map OKX fields to dashboard fields
                 formatted.append({
                     'id': oid,
                     'type': o.get('side', '').upper(),
-                    'posSide': o.get('posSide'),
+                    'posSide': mapped_side,
                     'entry_spot_price': safe_float(o.get('px')),
                     'stake': abs(safe_float(o.get('sz'))) * safe_float(o.get('px')) * safe_float(self.engine.product_info.get('contractSize', 1.0)),
                     'tp_price': safe_float(o.get('tpTriggerPx')),

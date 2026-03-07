@@ -43,8 +43,8 @@ class AutoCalManager:
 
         # CLIENT FORMULA: Target UPL = Notional * fee_pct * multiplier
         surplus_target = fee_pct * mult
-        gain_on_rec = rec - surplus_target
-        if gain_on_rec <= 0: gain_on_rec = 0.0001
+        # Increased minimum gain to prevent division by near-zero causing massive orders
+        gain_on_rec = max(0.005, rec - surplus_target)
 
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -229,10 +229,18 @@ class AutoCalManager:
         sz_pct_notional = current_notional * pct
         final_notional = max(sz_pct_notional, target_notional)
 
-        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Final {final_notional:.2f}")
+        # Enforce safety limit: Auto-Cal additions MUST NOT exceed available capacity
+        # This addresses Point 1 (why 382k order happened)
+        remaining = self.engine.remaining_amount_notional
+        if final_notional > remaining:
+            self.engine.log(f"Auto-Add ({side.upper()}): Reducing requested add amount {final_notional:.2f} to fit remaining capacity {remaining:.2f}", level="info")
+            final_notional = remaining
 
-        # Auto-Cal Add Position should open trade independent of the Used and Remaining
-        self.engine.log(f"Auto-Cal Add ({side.upper()}): Bypassing Strategy Loop budget constraints (Current Loop Used: ${self.engine.position_manager.used_amount_notional:.2f})", level="debug")
+        if final_notional <= 0:
+            self.engine.log(f"Auto-Add ({side.upper()}): No capacity remaining for additions. Skipping.", level="info")
+            return False
+
+        self.engine.log(f"Auto-Add Calc: Current {current_notional:.2f}, Pct {pct*100:.1f}% -> {sz_pct_notional:.2f}. Recovery Target {target_notional:.2f}. Capacity-Limited Final {final_notional:.2f}")
 
         contract_multiplier = safe_float(self.engine.product_info.get('contractSize', 1.0))
         sz = final_notional / (price * contract_multiplier)

@@ -46,5 +46,18 @@ This report summarizes the findings and improvements made to the trading bot's c
 * **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates (incrementing step counts *before* the API call returns) to ensure only one addition is processed per side at a time.
 * **OCO Order Support:** Standardized position-level TP/SL to use `oco` (One-Cancels-the-Other) order types, ensuring that if one target is hit, the other is automatically cancelled by the exchange.
 
+## 5. Budget and Capacity Enforcement
+
+### Findings:
+* **Order Amount Explosion:** A bug in the Auto-Cal recovery math allowed the `gain_on_rec` denominator to approach zero, leading to extremely large "Need Add" calculations (e.g., $382,000$ when the budget was $10,000$).
+* **Batch Overlap:** In One-way mode, pending orders returned by OKX were marked as `posSide: net`. The bot's batch logic was looking for `posSide: long/short`, failed to see the existing orders, and kept placing new ones until it hit 13 orders instead of the requested 3.
+* **Limit Clarity:** The "Max Amount" displayed on the dashboard was calculated simply as `Max Allowed * Leverage`, ignoring the `Rate Divisor`, which led to confusion about the actual available capacity.
+
+### Fixes:
+* **Hard Capacity Caps:** The `AutoCalManager` now strictly enforces that any addition must fit within the `remaining_amount_notional`. It will automatically truncate recovery orders to stay within your defined budget.
+* **Recovery Math Hardening:** Added a minimum 0.5% safety buffer to the recovery denominator to prevent mathematical explosions.
+* **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction. This allows the batch logic to correctly identify "In-Flight" orders and stop at the exact batch size requested.
+* **Accurate Capacity Display:** The "Max Notional Cap" on the dashboard now correctly accounts for the `Rate Divisor` using the formula: `(Max Equity Limit / Rate) * Leverage`.
+
 ## Conclusion
-The platform now handles data consistently by distinguishing between **Net Profit** (realizable cash) and **Unrealized PnL** (market movement). The Auto-Cal additions are now more robust, anchored to the actual position average entry price, and properly synchronized with exchange-side TP/SL orders.
+The platform now handles data consistently by distinguishing between **Net Profit** (realizable cash) and **Unrealized PnL** (market movement). The Auto-Cal additions are now more robust, anchored to the actual position average entry price, strictly budget-limited, and properly synchronized with exchange-side TP/SL orders.
