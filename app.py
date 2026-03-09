@@ -352,8 +352,8 @@ def get_status():
         'size_amount': bot_engine.size_amount,
         'need_add_usdt': getattr(bot_engine, 'need_add_usdt_profit_target', 0.0),
         'need_add_above_zero': getattr(bot_engine, 'need_add_usdt_above_zero', 0.0),
-        'raw_need_add_usdt': bot_engine.raw_need_add_usdt_profit_target,
-        'raw_need_add_above_zero': bot_engine.raw_need_add_usdt_above_zero,
+        'raw_need_add_usdt': getattr(bot_engine, 'raw_need_add_usdt_profit_target', 0.0),
+        'raw_need_add_above_zero': getattr(bot_engine, 'raw_need_add_usdt_above_zero', 0.0),
         # Realized profit tracking
         'net_trade_profit': getattr(bot_engine, 'net_trade_profit', 0.0),
         'total_trade_profit': getattr(bot_engine, 'total_trade_profit', 0.0),

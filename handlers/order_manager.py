@@ -168,12 +168,6 @@ class OrderManager:
             return None
 
     def initiate_entry_batch(self, initial_limit_price, side, batch_size):
-        # Prevent placing new batch if one is already pending for this side to avoid overlap
-        with self.engine.lock:
-            if any(o['id'] in self.pending_entry_ids and o.get('posSide') == side for o in self.open_trades):
-                self.engine.log(f"Entry batch for {side} already pending. Skipping new batch initiation.", level="debug")
-                return
-
         batch_offset = self.config.get('batch_offset', 0)
         self.batch_counter += 1
 

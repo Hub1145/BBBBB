@@ -61,7 +61,8 @@ This report summarizes the findings and improvements made to the trading bot's c
 ### Fixes:
 * **Absolute Capacity Caps:** Auto-Cal additions are now decoupled from the loop-specific "Remaining Amount" and "Rate Divisor". Instead, they are safety-capped by the **Absolute Notional Limit** `(Max Allowed * Leverage)`. This allows Auto-Cal to execute recovery trades independently of strategy loop restrictions while still protecting the account from over-exposure.
 * **Mathematical Hardening (The "382k Fix"):** In the recovery formula `Add Amount = (-UPL / (Rec% - Target%)) - Notional`, if the Recovery % is very close to your Target Profit %, the denominator becomes nearly zero. This causes the required addition amount to "explode" into hundreds of thousands of dollars. We have now enforced a **minimum 0.5% safety gap** in the denominator. This ensures that even with aggressive settings, the bot will never calculate a recovery amount that exceeds reasonable account limits.
-* **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction. This allows the batch logic to correctly identify "In-Flight" orders and stop at the exact batch size requested.
+* **Aggressive Continuous Entry:** Removed the restriction that prevented new entry batches while previous orders were still pending. The bot now supports overlapping batches, placing new orders every loop cycle as long as signals are active and budget remains.
+* **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction to ensure accurate real-time capacity management during these continuous entries.
 * **Accurate Capacity Display:** The "Max Notional Cap" on the dashboard now correctly accounts for the `Rate Divisor` using the formula: `(Max Equity Limit / Rate) * Leverage`.
 
 ## Conclusion
