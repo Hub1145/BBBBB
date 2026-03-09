@@ -262,12 +262,11 @@ class TradingBotEngine:
                         self.auto_cal_manager.check_auto_add()
 
                         # REAL-TIME EXIT CHECK (ALIGNED WITH OKX UPL)
-                        # Gated by is_running: Don't execute automated exits if the bot is stopped.
-                        if self.is_running:
-                            net_pnl = self.net_profit
-                            triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
-                            if triggered:
-                                threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
+                        # Persistent: Runs even if is_running is False (only 'Stop All' halts this)
+                        net_pnl = self.net_profit
+                        triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
+                        if triggered:
+                            threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
                     self._emit_socket_updates(throttle=True)
             elif channel == 'positions' and data:
                 self.position_manager.process_positions(data, is_snapshot=(action == 'snapshot'))

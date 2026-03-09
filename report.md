@@ -47,7 +47,8 @@ This report summarizes the findings and improvements made to the trading bot's c
 ### Fixes:
 * **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates to ensure only one addition is processed per side at a time.
 * **Sensitive Configuration Gating:** The bot now detects changes to API keys, testnet settings, or account modes. When these change, it **automatically stops trading** (`is_running = False`) and performs a full reset of all internal metrics and handlers. This ensures a clean slate for every account switch.
-* **Strict Logic Gating:** All automated trading actions (Auto-Cal additions, Margin adjustments, and Real-time exits) are now strictly gated by the `is_running` flag. The bot will only perform data synchronization and log monitoring in passive mode.
+* **Persistent Recovery (The "No-Stop" Auto-Cal):** Per your request, the Auto-Cal recovery features (Additions, Margin adjustments, and Real-time exits) are now **persistent**. They will continue to manage and protect your existing positions even if the main strategy loop is "Stopped". This ensures that recovery trades and profit-target exits are always active as long as the engine is running.
+* **The "Stop All" Fail-safe:** To completely halt every process (including Auto-Cal and background monitoring), use the new **"Stop All"** button. This performs a hard shutdown of the engine and all WebSocket connections.
 * **OCO Order Support:** Standardized position-level TP/SL to use `oco` order types for exchange-side safety.
 
 ## 5. Budget and Capacity Enforcement
