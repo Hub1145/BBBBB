@@ -139,6 +139,7 @@ class AutoCalManager:
         return False, ""
 
     def check_auto_margin(self):
+        if not self.engine.is_running: return
         if not self.config.get('use_auto_margin'): return
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -151,6 +152,7 @@ class AutoCalManager:
                         self.engine.okx_client.request("POST", "/api/v5/account/position/margin-balance", body_dict={"instId": self.config['symbol'], "posSide": pos.get('posSide', 'net'), "type": "add", "amt": str(round(amt, 2))})
 
     def check_auto_add(self):
+        if not self.engine.is_running: return
         with self.lock:
             if not any(self.config.get(k) for k in ['use_add_pos_auto_cal', 'use_add_pos_above_zero', 'use_add_pos_profit_target']): return
 

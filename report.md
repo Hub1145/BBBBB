@@ -37,14 +37,18 @@ This report summarizes the findings and improvements made to the trading bot's c
     * **Unrealized PnL:** Used for Mode 2 triggers and recovery notional calculations to maintain parity with OKX's interface.
 * **UI/Backend Parity:** Verified that `trade_fee_percentage` is correctly handled by `app.py` and synchronized to the engine on every config update.
 
-## 4. Stability and Race Conditions
+## 4. Stability and State Management
 
 ### Findings:
 * **Rapid-Fire Orders:** A race condition existed where the bot could send multiple market addition orders in a single second because the position state hadn't updated yet.
+* **Account Switching Security:** Previously, switching between 'Developer' and 'User' API keys did not explicitly stop the bot. This could lead to the bot automatically opening trades on a newly selected account if it was already "Running" on the previous one.
+* **Passive Mode Trading:** The Auto-Cal recovery features were not strictly gated by the `is_running` flag, potentially allowing them to trade while the bot was supposed to be in "Passive" monitoring mode.
 
 ### Fixes:
-* **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates (incrementing step counts *before* the API call returns) to ensure only one addition is processed per side at a time.
-* **OCO Order Support:** Standardized position-level TP/SL to use `oco` (One-Cancels-the-Other) order types, ensuring that if one target is hit, the other is automatically cancelled by the exchange.
+* **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates to ensure only one addition is processed per side at a time.
+* **Sensitive Configuration Gating:** The bot now detects changes to API keys, testnet settings, or account modes. When these change, it **automatically stops trading** (`is_running = False`) and performs a full reset of all internal metrics and handlers. This ensures a clean slate for every account switch.
+* **Strict Logic Gating:** All automated trading actions (Auto-Cal additions, Margin adjustments, and Real-time exits) are now strictly gated by the `is_running` flag. The bot will only perform data synchronization and log monitoring in passive mode.
+* **OCO Order Support:** Standardized position-level TP/SL to use `oco` order types for exchange-side safety.
 
 ## 5. Budget and Capacity Enforcement
 
