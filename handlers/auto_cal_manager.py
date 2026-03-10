@@ -43,8 +43,8 @@ class AutoCalManager:
 
         # CLIENT FORMULA: Target UPL = Notional * fee_pct * multiplier
         surplus_target = fee_pct * mult
-        # Increased minimum gain to prevent division by near-zero causing massive orders
-        gain_on_rec = max(0.005, rec - surplus_target)
+        gain_on_rec = rec - surplus_target
+        if gain_on_rec <= 0: gain_on_rec = 0.0001
 
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -139,7 +139,10 @@ class AutoCalManager:
         return False, ""
 
     def check_auto_margin(self):
-        # Persistent: Runs even if is_running is False (only 'Stop All' halts this)
+        # Persistent: Runs even if is_running is False, BUT only after the bot has been started at least once.
+        # This prevents rogue trades when switching accounts before clicking "Start".
+        if not self.engine.persistent_mode_active: return
+
         if not self.config.get('use_auto_margin'): return
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -152,7 +155,9 @@ class AutoCalManager:
                         self.engine.okx_client.request("POST", "/api/v5/account/position/margin-balance", body_dict={"instId": self.config['symbol'], "posSide": pos.get('posSide', 'net'), "type": "add", "amt": str(round(amt, 2))})
 
     def check_auto_add(self):
-        # Persistent: Runs even if is_running is False (only 'Stop All' halts this)
+        # Persistent: Runs even if is_running is False, BUT only after the bot has been started at least once.
+        if not self.engine.persistent_mode_active: return
+
         with self.lock:
             if not any(self.config.get(k) for k in ['use_add_pos_auto_cal', 'use_add_pos_above_zero', 'use_add_pos_profit_target']): return
 

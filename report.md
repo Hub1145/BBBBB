@@ -46,8 +46,9 @@ This report summarizes the findings and improvements made to the trading bot's c
 
 ### Fixes:
 * **Concurrency Protection:** Introduced `_is_adding` flags and optimistic state updates to ensure only one addition is processed per side at a time.
-* **Sensitive Configuration Gating:** The bot now detects changes to API keys, testnet settings, or account modes. When these change, it **automatically stops trading** (`is_running = False`) and performs a full reset of all internal metrics and handlers. This ensures a clean slate for every account switch.
-* **Persistent Recovery (The "No-Stop" Auto-Cal):** Per your request, the Auto-Cal recovery features (Additions, Margin adjustments, and Real-time exits) are now **persistent**. They will continue to manage and protect your existing positions even if the main strategy loop is "Stopped". This ensures that recovery trades and profit-target exits are always active as long as the engine is running.
+* **Reliable Account Switching:** The bot snapshot critical credentials (API keys, Symbol, Mode) and compares them on every update. If a switch is detected, it **automatically stops all trading** and resets the "Master Activation" flag. This prevents the bot from opening trades on a new account automatically.
+* **Master Activation Flag:** Introduced `persistent_mode_active`. Persistent recovery features only activate after you click **"Start"** at least once for the current account/session.
+* **Persistent Recovery (The "No-Stop" Auto-Cal):** Once activated, Auto-Cal recovery features (Additions, Margin adjustments, and Real-time exits) become **persistent**. They will continue to manage and protect your existing positions even if the strategy loop is "Stopped". This ensures that recovery trades remain active while the engine is running.
 * **The "Stop All" Fail-safe:** To completely halt every process (including Auto-Cal and background monitoring), use the new **"Stop All"** button. This performs a hard shutdown of the engine and all WebSocket connections.
 * **OCO Order Support:** Standardized position-level TP/SL to use `oco` order types for exchange-side safety.
 
@@ -60,7 +61,7 @@ This report summarizes the findings and improvements made to the trading bot's c
 
 ### Fixes:
 * **Absolute Capacity Caps:** Auto-Cal additions are now decoupled from the loop-specific "Remaining Amount" and "Rate Divisor". Instead, they are safety-capped by the **Absolute Notional Limit** `(Max Allowed * Leverage)`. This allows Auto-Cal to execute recovery trades independently of strategy loop restrictions while still protecting the account from over-exposure.
-* **Mathematical Hardening (The "382k Fix"):** In the recovery formula `Add Amount = (-UPL / (Rec% - Target%)) - Notional`, if the Recovery % is very close to your Target Profit %, the denominator becomes nearly zero. This causes the required addition amount to "explode" into hundreds of thousands of dollars. We have now enforced a **minimum 0.5% safety gap** in the denominator. This ensures that even with aggressive settings, the bot will never calculate a recovery amount that exceeds reasonable account limits.
+* **Mathematical Enforcement:** The recovery formula `Add Amount = (-UPL / (Rec% - Target%)) - Notional` is followed exactly as defined. The bot calculates the mathematically required addition to reach your recovery targets, only restricted by your absolute account budget (`Max Equity Limit * Leverage`).
 * **Aggressive Continuous Entry:** Removed the restriction that prevented new entry batches while previous orders were still pending. The bot now supports overlapping batches, placing new orders every loop cycle as long as signals are active and budget remains.
 * **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction to ensure accurate real-time capacity management during these continuous entries.
 * **Accurate Capacity Display:** The "Max Notional Cap" on the dashboard now correctly accounts for the `Rate Divisor` using the formula: `(Max Equity Limit / Rate) * Leverage`.
