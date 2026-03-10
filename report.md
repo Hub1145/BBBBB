@@ -66,5 +66,27 @@ This report summarizes the findings and improvements made to the trading bot's c
 * **Normalized Side Tracking:** Pending orders are now normalized to `long` or `short` side based on their trade direction to ensure accurate real-time capacity management during these continuous entries.
 * **Accurate Capacity Display:** The "Max Notional Cap" on the dashboard now correctly accounts for the `Rate Divisor` using the formula: `(Max Equity Limit / Rate) * Leverage`.
 
+## 6. Understanding Auto-Cal Logs & Execution
+
+You may see logs like this:
+`Auto-Cal (SHORT): UPL=$-13.22, Raw Need-Add=$16119.86. (Target: $0.49, Safety Threshold: -$0.33)`
+
+### What these values mean:
+*   **UPL ($-13.22$):** Your current Unrealized PnL on OKX.
+*   **Safety Threshold ($-0.33$):** The point where recovery logic starts. If your UPL is "more negative" than this, the bot calculates how much you need to add.
+*   **Raw Need-Add ($16,119.86$):** The mathematically required amount (Notional) to add to your position to bring your average entry price to a level where you can reach your profit target.
+*   **Target ($0.49$):** Your profit goal (Size * Fee% * Multiplier). If UPL hits this, the position closes.
+
+### When does the order actually place?
+The bot calculates these numbers every few seconds so that the **Dashboard "Need Add" badges** are always accurate. However, an order is **NOT** placed every time the calculation runs. An order is only sent to the exchange when:
+
+1.  **Authorization:** You have clicked **"Start"** at least once (Master Activation is on).
+2.  **Trigger Condition:**
+    *   **The Gap Trigger:** The market price moves far enough away from your Average Entry price (based on your "Gap Threshold" setting).
+    *   **The PnL Trigger:** The "Need Add" amount is positive and Mode 2 is enabled.
+3.  **Safety Check:** The bot is not already waiting for an order to fill (`_is_adding` protection).
+
+**Summary:** The logs show the bot's "thinking" process. It calculates that you need $16k to recover, but it will wait for the price to hit your specified **Gap Threshold** before executing that order to ensure it enters at the best possible price.
+
 ## Conclusion
 The platform now handles data consistently by distinguishing between **Net Profit** (realizable cash) and **Unrealized PnL** (market movement). The Auto-Cal recovery features are now robust, anchored to the actual position average entry price, and properly synchronized with exchange-side TP/SL orders. By decoupling Auto-Cal from loop-specific budgets and implementing a "Master Activation" flag, the bot ensures secure account transitions while providing persistent, mathematically accurate position protection.
