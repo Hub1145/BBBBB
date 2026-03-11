@@ -182,8 +182,13 @@ class AutoCalManager:
                     # Gap = Market Price - Entry Price (for Shorts) or Entry - Market (for Longs)
                     price_diff = (entry - mkt) if side == 'long' else (mkt - entry)
 
-                    # Dual Trigger: Trigger addition if Price Gap Threshold OR PnL Recovery Target (Mode 2) is hit.
-                    pnl_trigger = (self.need_add_profit_target_per_side[side] > 0)
+                    # Dual Trigger: Trigger addition if Price Gap Threshold OR PnL Recovery Target (Mode 1 or 2) is hit.
+                    pnl_trigger = False
+                    if self.config.get('use_add_pos_profit_target') and self.need_add_profit_target_per_side[side] > 0:
+                        pnl_trigger = True
+                    if self.config.get('use_add_pos_above_zero') and self.need_add_above_zero_per_side[side] > 0:
+                        pnl_trigger = True
+
                     gap_trigger = (price_diff >= gap)
 
                     if self.engine.monitoring_tick % 10 == 0:
@@ -235,6 +240,14 @@ class AutoCalManager:
 
         sz_pct_notional = current_notional * pct
         final_notional = max(sz_pct_notional, target_notional)
+
+        # Safety Cap: Prevent order explosion. Cap recovery orders at 2x the current account equity.
+        equity = self.engine.total_equity
+        if equity > 0:
+            max_safe = equity * 2.0
+            if final_notional > max_safe:
+                self.engine.log(f"Auto-Add ({side.upper()}): Capping order notional {final_notional:.2f} to safety limit {max_safe:.2f} (2x Equity)", level="warning")
+                final_notional = max_safe
 
         # UNRESTRICTED Auto-Cal: Per user requirement, AutoCalManager ignores Max Allowed and Remaining Amount.
         # It uses funds directly from the balance to execute the recovery formula.
