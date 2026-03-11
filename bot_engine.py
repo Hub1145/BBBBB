@@ -21,6 +21,7 @@ class TradingBotEngine:
         self.emit = emit_func
         self.config = self._load_config()
         self.is_running = False
+        self.persistent_mode_active = False # Controls AutoCal and Exits
         self.stop_event = threading.Event()
         self.console_logs = deque(maxlen=1000)
         self.product_info = {'contractSize': 1.0, 'lotSz': '1', 'tickSz': '0.01', 'pricePrecision': 2, 'qtyPrecision': 2, 'qtyStepSize': 1.0, 'minOrderQty': 0.01}
@@ -99,11 +100,14 @@ class TradingBotEngine:
         capacity = (max_allowed / rate_divisor) * leverage
         return max(0.0, capacity - self.used_amount_notional)
     @property
-    def max_allowed_display(self): return self.config.get('max_allowed_used', 0.0)
+    def max_allowed_display(self): return float(self.config.get('max_allowed_used', 0.0))
     @property
     def max_amount_display(self):
+        # Point 3: Clarity on Max Amount.
+        # Max Amount (Notional Cap) = (Max Allowed / Rate) * Leverage
         leverage = safe_float(self.config.get('leverage', 1), 1.0)
-        return self.max_allowed_display * leverage
+        rate = max(1.0, float(self.config.get('rate_divisor', 1.0)))
+        return (self.max_allowed_display / rate) * leverage
     @property
     def net_profit(self):
         # Sum of net_pnl for all active positions (UPL - Fees - Cycle Losses)
@@ -158,7 +162,9 @@ class TradingBotEngine:
         return valid
 
     def start(self, passive_monitoring=False):
-        if not passive_monitoring: self.is_running = True
+        if not passive_monitoring:
+            self.is_running = True
+            self.persistent_mode_active = True # Activate persistent features on first start
         self.stop_event.clear()
 
         # Move slow initialization to a background thread to keep the main thread (Flask) responsive
@@ -170,6 +176,10 @@ class TradingBotEngine:
             self.account_manager.sync_server_time()
             self.account_manager.fetch_product_info(self.config['symbol'])
             self.account_manager.sync_account_data() # Ensure equity is known for capacity calcs
+
+            # Point 4: Secure Data Sync before enabling any trading logic
+            self.position_manager.sync_positions()
+
             self.indicator_manager.fetch_historical_data(self.config['symbol'], self.config.get('candlestick_timeframe', '1m'))
             self.ws_handler.start()
 
@@ -183,12 +193,15 @@ class TradingBotEngine:
 
     def stop(self):
         self.is_running = False
-        self.log("Bot trading stopped")
+        self.log("Strategy Loop stopped. Auto-Cal recovery remains ACTIVE.")
 
     def stop_bot(self):
         self.stop_event.set()
         self.is_running = False
-        self.ws_handler.stop()
+        self.persistent_mode_active = False
+        self.log("Shutting down bot completely...")
+        if self.ws_handler:
+            self.ws_handler.stop()
 
     def _mgmt_loop(self):
         while not self.stop_event.is_set():
@@ -206,8 +219,6 @@ class TradingBotEngine:
                     self.order_manager.sync_open_orders(self.config['symbol'])
                     self.order_manager.check_unfilled_timeouts()
 
-                # Dynamic TP/SL updates removed per client request to set them on order placement
-
                 # 2. Auto-Add / Margin (Polling remains for these as they are gap-based)
                 if not self.authoritative_exit_in_progress and self.monitoring_tick % 5 == 0:
                     self.auto_cal_manager.calculate_need_add_metrics()
@@ -222,6 +233,12 @@ class TradingBotEngine:
                         self.strategy_manager.execute_strategy()
                     self.log(f"Waiting for next loop ({loop_interval}s)")
                     self.log("-" * 46)
+
+                # 3. Post-Add TP/SL Sync
+                if self._should_update_tpsl:
+                    self.log("Refreshing position TP/SL after Auto-Cal Add fill.")
+                    self.order_manager.batch_modify_tpsl(self.config['symbol'])
+                    self._should_update_tpsl = False
 
                 # 4. WebSocket Health Check (Fallback)
                 if self.monitoring_tick % 30 == 0:
@@ -250,15 +267,17 @@ class TradingBotEngine:
                     self.position_manager.update_realtime_metrics(price)
                     if not self.authoritative_exit_in_progress:
                         self.auto_cal_manager.calculate_need_add_metrics()
-                        self.auto_cal_manager.check_auto_add()
+
+                        # Only execute persistent features if activated
+                        if self.persistent_mode_active:
+                            self.auto_cal_manager.check_auto_add()
 
                         # REAL-TIME EXIT CHECK (ALIGNED WITH OKX UPL)
-                        # Client wants triggers to match the OKX screen's Unrealized PnL directly.
-                        net_pnl = self.cached_unrealized_pnl
-
-                        triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
-                        if triggered:
-                            threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
+                        if self.persistent_mode_active:
+                            net_pnl = self.net_profit
+                            triggered, reason = self.auto_cal_manager.check_auto_exit(net_pnl, self.cached_unrealized_pnl)
+                            if triggered:
+                                threading.Thread(target=self.execute_auto_exit, args=(reason,), daemon=True).start()
                     self._emit_socket_updates(throttle=True)
             elif channel == 'positions' and data:
                 self.position_manager.process_positions(data, is_snapshot=(action == 'snapshot'))
@@ -282,6 +301,14 @@ class TradingBotEngine:
 
                     # Track loop quantity based on order context
                     context = self.order_manager.order_contexts.get(ord_id)
+
+                    # Trigger TP/SL readjustment if an autocal add order is filled
+                    if context == 'autocal' and acc_fill > prev_fill and state in ['filled', 'partially_filled']:
+                        side_key = self.position_manager._map_side(raw_side, qty=(sz if o.get('side') == 'buy' else -sz))
+                        self.log(f"Auto-Cal Add Order Filled. Triggering TP/SL readjustment for {side_key} position.", level="info")
+                        # We defer the actual placement slightly to allow position to sync or use the last known avgPx
+                        self._should_update_tpsl = True
+
                     if context == 'loop' and fill_delta > 0:
                         # Update tracked fill size
                         self.order_manager.order_fills[ord_id] = acc_fill
@@ -290,7 +317,8 @@ class TradingBotEngine:
                         side = o.get('side') # buy/sell
                         pos_side_key = self.position_manager._map_side(raw_side, qty=(sz if side == 'buy' else -sz))
 
-                        # If buy for long or sell for short, it's opening/adding
+                        # Determine if this order is opening or closing
+                        # In One-way mode, buy always adds to long (or reduces short)
                         is_adding = (side == 'buy' and pos_side_key == 'long') or (side == 'sell' and pos_side_key == 'short')
 
                         delta = fill_delta if is_adding else -fill_delta
@@ -384,7 +412,11 @@ class TradingBotEngine:
         self.execute_auto_exit(reason)
 
     def apply_live_config_update(self, new_config):
-        old = self.config
+        # Point 2: Reliable account switch detection
+        # Create a snapshot of critical credentials before updating
+        keys_to_watch = ['okx_api_key', 'okx_api_secret', 'okx_passphrase', 'okx_demo_api_key', 'okx_demo_api_secret', 'okx_demo_api_passphrase', 'use_developer_api', 'use_testnet', 'symbol', 'okx_pos_mode']
+        old_keys = {k: self.config.get(k) for k in keys_to_watch}
+
         self.config = new_config
         for h in [self.okx_client, self.account_manager, self.position_manager, self.order_manager, self.auto_cal_manager, self.indicator_manager, self.strategy_manager, self.ws_handler]:
             h.config = new_config
@@ -393,14 +425,24 @@ class TradingBotEngine:
         self.okx_client.apply_api_credentials()
 
         # Immediate sync for sensitive changes
-        keys = ['okx_api_key', 'okx_api_secret', 'okx_passphrase', 'okx_demo_api_key', 'okx_demo_api_secret', 'okx_demo_api_passphrase', 'use_developer_api', 'use_testnet', 'symbol']
-        if any(old.get(k) != new_config.get(k) for k in keys):
+        if any(old_keys.get(k) != new_config.get(k) for k in keys_to_watch):
+            # Point 2: API Key / Mode Switch Security
+            # If sensitive credentials or mode changes, we MUST stop the bot and reset all handlers.
+            # This prevents trades from Account A leaking into Account B's state.
+            self.log("SENSITIVE CONFIG CHANGE: Resetting all handlers and DEACTIVATING all trading features.", level="warning")
+            self.is_running = False
+            self.persistent_mode_active = False
             self.position_manager.reset(); self.order_manager.reset()
             self.position_manager.reset_session_metrics()
-            if old.get('symbol') != new_config.get('symbol'):
+
+            # Always reset recovery counts on account/mode switch for safety
+            self.auto_cal_manager.auto_add_step_count = {'long': 0, 'short': 0}
+            self.auto_cal_manager.last_add_price = {'long': 0.0, 'short': 0.0}
+
+            # Re-fetch info if symbol changed
+            if old_keys.get('symbol') != new_config.get('symbol'):
                 self.account_manager.fetch_product_info(new_config['symbol'])
-                self.auto_cal_manager.auto_add_step_count = {'long': 0, 'short': 0}
-                self.auto_cal_manager.last_add_price = {'long': 0.0, 'short': 0.0}
+
             self.ws_handler.restart()
         return {'success': True}
 

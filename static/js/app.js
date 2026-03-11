@@ -55,6 +55,12 @@ function setupEventListeners() {
         updateThemeIcon(theme);
     });
 
+    document.getElementById('stopAllBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to STOP ALL? This will shut down the bot completely, including background monitoring.')) {
+            socket.emit('stop_all');
+        }
+    });
+
     document.getElementById('startStopBtn').addEventListener('click', () => {
         const btn = document.getElementById('startStopBtn');
         btn.disabled = true;
@@ -229,6 +235,22 @@ function setupEventListeners() {
     });
 
     document.getElementById('testApiKeyBtn').addEventListener('click', testApiKey);
+
+    document.getElementById('tpCloseLimit').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
+    document.getElementById('tpCloseSameAsTrigger').addEventListener('change', () => toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv'));
+    document.getElementById('slCloseLimit').addEventListener('change', () => toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv'));
+    document.getElementById('slCloseSameAsTrigger').addEventListener('change', () => toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv'));
+}
+
+function toggleClosePrice(limitId, sameId, divId) {
+    const limit = document.getElementById(limitId).checked;
+    const same = document.getElementById(sameId).checked;
+    const div = document.getElementById(divId);
+    if (limit && !same) {
+        div.style.display = 'block';
+    } else {
+        div.style.display = 'none';
+    }
 }
 
 function toggleCandlestickInputs() {
@@ -390,7 +412,7 @@ function setupSocketListeners() {
 }
 
 function updateBotStatus(running) {
-    // If we are currently transitioning (Starting/Stopping), don't let 
+    // If we are currently transitioning (Starting/Stopping), don't let
     // early status polls from background threads flicker the UI back.
     // Only accept the update if it matches the EXPECTED transition outcome.
     if (isTransitioning) {
@@ -695,7 +717,7 @@ function updatePositionDisplay(positionData) {
                     <div class="col-6 small text-white-50">Unrealized PnL:</div>
                     <div class="col-6 small text-end ${pos.upl >= 0 ? 'text-success' : 'text-danger'}">$${pos.upl.toFixed(2)}</div>
                     <div class="col-6 small text-white-50">Net PnL (w/ Fees):</div>
-                    <div class="col-6 small text-end ${pos.net_pnl >= 0 ? 'text-success' : 'text-danger'}">$${(pos.net_pnl || pos.upl).toFixed(2)}</div>
+                    <div class="col-6 small text-end ${pos.net_pnl >= 0 ? 'text-success' : 'text-danger'}">$${(pos.net_pnl ?? pos.upl).toFixed(2)}</div>
                     <div class="col-6 small text-white-50">Current TP:</div>
                     <div class="col-6 small text-end text-success">${safeFix4(pos.tp)}</div>
                     <div class="col-6 small text-white-50">Current SL:</div>
@@ -1006,8 +1028,8 @@ async function loadConfig() {
 
         // Sync PnL Auto-Cancel UI (New Dual Mode)
         // Auto-Manual
-        const useAutoManual = currentConfig.use_pnl_auto_manual !== undefined ? currentConfig.use_pnl_auto_manual : false;
-        const manualThreshold = currentConfig.pnl_auto_manual_threshold !== undefined ? currentConfig.pnl_auto_manual_threshold : 100.0;
+        const useAutoManual = currentConfig.use_pnl_auto_manual ?? false;
+        const manualThreshold = currentConfig.pnl_auto_manual_threshold ?? 100.0;
 
         const elUseManual = document.getElementById('usePnlAutoManual');
         if (elUseManual) elUseManual.checked = useAutoManual;
@@ -1016,8 +1038,8 @@ async function loadConfig() {
         if (elManualThresh) elManualThresh.value = manualThreshold;
 
         // Auto-Cal
-        const useAutoCal = currentConfig.use_pnl_auto_cal !== undefined ? currentConfig.use_pnl_auto_cal : false;
-        const calTimes = currentConfig.pnl_auto_cal_times !== undefined ? currentConfig.pnl_auto_cal_times : 4.0;
+        const useAutoCal = currentConfig.use_pnl_auto_cal ?? false;
+        const calTimes = currentConfig.pnl_auto_cal_times ?? 4.0;
 
         const elUseCal = document.getElementById('usePnlAutoCal');
         if (elUseCal) elUseCal.checked = useAutoCal;
@@ -1026,8 +1048,8 @@ async function loadConfig() {
         if (elCalTimes) elCalTimes.value = calTimes;
 
         // Auto-Cal Loss
-        const useAutoCalLoss = currentConfig.use_pnl_auto_cal_loss !== undefined ? currentConfig.use_pnl_auto_cal_loss : false;
-        const calLossTimes = currentConfig.pnl_auto_cal_loss_times !== undefined ? currentConfig.pnl_auto_cal_loss_times : 1.5;
+        const useAutoCalLoss = currentConfig.use_pnl_auto_cal_loss ?? false;
+        const calLossTimes = currentConfig.pnl_auto_cal_loss_times ?? 1.5;
 
         const elUseCalLoss = document.getElementById('usePnlAutoCalLoss');
         if (elUseCalLoss) elUseCalLoss.checked = useAutoCalLoss;
@@ -1036,8 +1058,8 @@ async function loadConfig() {
         if (elCalLossTimes) elCalLossTimes.value = calLossTimes;
 
         // Auto-Cal Size (Profit)
-        const useSizeAutoCal = currentConfig.use_size_auto_cal !== undefined ? currentConfig.use_size_auto_cal : false;
-        const sizeCalTimes = currentConfig.size_auto_cal_times !== undefined ? currentConfig.size_auto_cal_times : 2.0;
+        const useSizeAutoCal = currentConfig.use_size_auto_cal ?? false;
+        const sizeCalTimes = currentConfig.size_auto_cal_times ?? 2.0;
 
         const elUseSizeCal = document.getElementById('useSizeAutoCal');
         if (elUseSizeCal) elUseSizeCal.checked = useSizeAutoCal;
@@ -1046,8 +1068,8 @@ async function loadConfig() {
         if (elSizeCalTimes) elSizeCalTimes.value = sizeCalTimes;
 
         // Auto-Cal Size Loss
-        const useSizeAutoCalLoss = currentConfig.use_size_auto_cal_loss !== undefined ? currentConfig.use_size_auto_cal_loss : false;
-        const sizeCalLossTimes = currentConfig.size_auto_cal_loss_times !== undefined ? currentConfig.size_auto_cal_loss_times : 1.5;
+        const useSizeAutoCalLoss = currentConfig.use_size_auto_cal_loss ?? false;
+        const sizeCalLossTimes = currentConfig.size_auto_cal_loss_times ?? 1.5;
 
         const elUseSizeCalLoss = document.getElementById('useSizeAutoCalLoss');
         if (elUseSizeCalLoss) elUseSizeCalLoss.checked = useSizeAutoCalLoss;
@@ -1056,8 +1078,8 @@ async function loadConfig() {
         if (elSizeCalLossTimes) elSizeCalLossTimes.value = sizeCalLossTimes;
 
         // Auto-Add Margin
-        const useAutoMargin = currentConfig.use_auto_margin !== undefined ? currentConfig.use_auto_margin : false;
-        const autoMarginOffset = currentConfig.auto_margin_offset !== undefined ? currentConfig.auto_margin_offset : 30.0;
+        const useAutoMargin = currentConfig.use_auto_margin ?? false;
+        const autoMarginOffset = currentConfig.auto_margin_offset ?? 30.0;
 
         const elUseAutoMargin = document.getElementById('useAutoMargin');
         if (elUseAutoMargin) elUseAutoMargin.checked = useAutoMargin;
@@ -1066,60 +1088,61 @@ async function loadConfig() {
         if (elAutoMarginOffset) elAutoMarginOffset.value = autoMarginOffset;
 
         // Auto-Cal Add Position
-        const useAddPos = currentConfig.use_add_pos_auto_cal !== undefined ? currentConfig.use_add_pos_auto_cal : false;
-        const addPosRecovery = currentConfig.add_pos_recovery_percent !== undefined ? currentConfig.add_pos_recovery_percent : 0.7;
+        const addPosRecovery = currentConfig.add_pos_recovery_percent ?? 0.6;
+        const useAddPosAboveZero = currentConfig.use_add_pos_above_zero ?? false;
+        const useAddPosProfitTarget = currentConfig.use_add_pos_profit_target ?? currentConfig.use_add_pos_auto_cal ?? false;
 
         const elAboveZero = document.getElementById('useAddPosAboveZero');
-        if (elAboveZero) elAboveZero.checked = currentConfig.use_add_pos_above_zero || false;
+        if (elAboveZero) elAboveZero.checked = useAddPosAboveZero;
         const elAboveZeroMain = document.getElementById('useAddPosAboveZeroMain');
-        if (elAboveZeroMain) elAboveZeroMain.checked = currentConfig.use_add_pos_above_zero || false;
+        if (elAboveZeroMain) elAboveZeroMain.checked = useAddPosAboveZero;
 
         const elProfitTarget = document.getElementById('useAddPosProfitTarget');
-        if (elProfitTarget) elProfitTarget.checked = currentConfig.use_add_pos_profit_target || currentConfig.use_add_pos_auto_cal || false;
+        if (elProfitTarget) elProfitTarget.checked = useAddPosProfitTarget;
         const elProfitTargetMain = document.getElementById('useAddPosProfitTargetMain');
-        if (elProfitTargetMain) elProfitTargetMain.checked = currentConfig.use_add_pos_profit_target || currentConfig.use_add_pos_auto_cal || false;
+        if (elProfitTargetMain) elProfitTargetMain.checked = useAddPosProfitTarget;
 
         const elAddPosRecovery = document.getElementById('addPosRecoveryPercent');
         if (elAddPosRecovery) elAddPosRecovery.value = addPosRecovery;
         const elAddPosRecoveryMain = document.getElementById('addPosRecoveryPercentMain');
         if (elAddPosRecoveryMain) elAddPosRecoveryMain.value = addPosRecovery;
 
-        const addPosProfitMult = currentConfig.add_pos_profit_multiplier !== undefined ? currentConfig.add_pos_profit_multiplier : 1.5;
+        const addPosProfitMult = currentConfig.add_pos_profit_multiplier ?? 1.5;
         const elAddPosProfitMult = document.getElementById('addPosProfitMultiplier');
         if (elAddPosProfitMult) elAddPosProfitMult.value = addPosProfitMult;
         const elAddPosProfitMultMain = document.getElementById('addPosProfitMultiplierMain');
         if (elAddPosProfitMultMain) elAddPosProfitMultMain.value = addPosProfitMult;
 
-        const addPosGap = currentConfig.add_pos_gap_threshold !== undefined ? currentConfig.add_pos_gap_threshold : 5.0;
+        const addPosGap = currentConfig.add_pos_gap_threshold ?? 5.0;
         const elAddPosGap = document.getElementById('addPosGapThreshold');
         if (elAddPosGap) elAddPosGap.value = addPosGap;
         const elAddPosGapMain = document.getElementById('addPosGapThresholdMain');
         if (elAddPosGapMain) elAddPosGapMain.value = addPosGap;
 
-        const step2Offset = currentConfig.add_pos_step2_offset !== undefined ? currentConfig.add_pos_step2_offset : 0.0;
+        const step2Offset = currentConfig.add_pos_step2_offset ?? 0.0;
         const elStep2Offset = document.getElementById('addPosStep2Offset');
         if (elStep2Offset) elStep2Offset.value = step2Offset;
 
         // New Percentage Based Martingale Fields
-        const addPosSizePct = currentConfig.add_pos_size_pct !== undefined ? currentConfig.add_pos_size_pct : 30.0;
+        const addPosSizePct = currentConfig.add_pos_size_pct ?? 30.0;
         const elSizePct = document.getElementById('addPosSizePct');
         if (elSizePct) elSizePct.value = addPosSizePct;
         const elSizePctMain = document.getElementById('addPosSizePctMain');
         if (elSizePctMain) elSizePctMain.value = addPosSizePct;
 
-        const addPosMaxCount = currentConfig.add_pos_max_count !== undefined ? currentConfig.add_pos_max_count : 10;
+        const addPosMaxCount = currentConfig.add_pos_max_count ?? 10;
         const elMaxCount = document.getElementById('addPosMaxCount');
         if (elMaxCount) elMaxCount.value = addPosMaxCount;
         const elMaxCountMain = document.getElementById('addPosMaxCountMain');
         if (elMaxCountMain) elMaxCountMain.value = addPosMaxCount;
 
-        const addPosGapOffset = currentConfig.add_pos_gap_offset !== undefined ? currentConfig.add_pos_gap_offset : 0.0;
+        const addPosGapOffset = currentConfig.add_pos_gap_offset ?? 0.0;
         const elGapOffset = document.getElementById('addPosGapOffset');
         if (elGapOffset) elGapOffset.value = addPosGapOffset;
         const elGapOffsetMain = document.getElementById('addPosGapOffsetMain');
         if (elGapOffsetMain) elGapOffsetMain.value = addPosGapOffset;
 
-        const addPosSizePctOffset = currentConfig.add_pos_size_pct_offset !== undefined ? currentConfig.add_pos_size_pct_offset : 0.0;
+        const addPosSizePctOffset = currentConfig.add_pos_size_pct_offset ?? 0.0;
         const elSizePctOffset = document.getElementById('addPosSizePctOffset');
         if (elSizePctOffset) elSizePctOffset.value = addPosSizePctOffset;
         const elSizePctOffsetMain = document.getElementById('addPosSizePctOffsetMain');
@@ -1219,7 +1242,7 @@ function loadConfigToModal() {
     safeSetChecked('cancelOnTpPriceAboveMarket', currentConfig.cancel_on_tp_price_above_market);
     safeSetChecked('cancelOnEntryPriceBelowMarket', currentConfig.cancel_on_entry_price_below_market);
     safeSetChecked('cancelOnEntryPriceAboveMarket', currentConfig.cancel_on_entry_price_above_market);
-    safeSetVal('tradeFeePercentage', currentConfig.trade_fee_percentage || 0.07);
+    safeSetVal('tradeFeePercentage', currentConfig.trade_fee_percentage ?? 0.07);
 
     // New fields
     safeSetVal('direction', currentConfig.direction);
@@ -1242,115 +1265,143 @@ function loadConfigToModal() {
     safeSetVal('minChgHighClose', currentConfig.min_chg_high_close);
     safeSetVal('maxChgHighClose', currentConfig.max_chg_high_close);
     safeSetVal('candlestickTimeframe', currentConfig.candlestick_timeframe);
-    safeSetVal('okxPosMode', currentConfig.okx_pos_mode || 'net_mode');
+    safeSetVal('okxPosMode', currentConfig.okx_pos_mode ?? 'net_mode');
+
+    safeSetChecked('tpCloseLimit', currentConfig.tp_close_limit);
+    safeSetChecked('tpCloseSameAsTrigger', currentConfig.tp_close_same_as_trigger);
+    safeSetChecked('slCloseLimit', currentConfig.sl_close_limit);
+    safeSetChecked('slCloseSameAsTrigger', currentConfig.sl_close_same_as_trigger);
+    safeSetVal('tpClosePrice', currentConfig.tp_close_price ?? 0);
+    safeSetVal('slClosePrice', currentConfig.sl_close_price ?? 0);
+
+    toggleClosePrice('tpCloseLimit', 'tpCloseSameAsTrigger', 'tpClosePriceDiv');
+    toggleClosePrice('slCloseLimit', 'slCloseSameAsTrigger', 'slClosePriceDiv');
 
     // PnL Auto-Cancel (Modal Sync -> Maps to Auto-Manual Profit)
-    safeSetChecked('usePnlAutoCancelModal', currentConfig.use_pnl_auto_manual || false);
-    safeSetVal('pnlAutoCancelThresholdModal', currentConfig.pnl_auto_manual_threshold || 100.0);
+    safeSetChecked('usePnlAutoCancelModal', currentConfig.use_pnl_auto_manual ?? false);
+    safeSetVal('pnlAutoCancelThresholdModal', currentConfig.pnl_auto_manual_threshold ?? 100.0);
 
     // Populate Add Pos fields in modal explicitly
-    safeSetVal('addPosRecoveryPercent', currentConfig.add_pos_recovery_percent || 0.6);
-    safeSetVal('addPosGapThreshold', currentConfig.add_pos_gap_threshold || 5.0);
-    safeSetVal('addPosProfitMultiplier', currentConfig.add_pos_profit_multiplier || 1.5);
-    safeSetVal('addPosSizePct', currentConfig.add_pos_size_pct || 30.0);
-    safeSetVal('addPosMaxCount', currentConfig.add_pos_max_count || 10);
-    safeSetVal('addPosGapOffset', currentConfig.add_pos_gap_offset || 0.0);
-    safeSetVal('addPosSizePctOffset', currentConfig.add_pos_size_pct_offset || 0.0);
+    safeSetVal('addPosRecoveryPercent', currentConfig.add_pos_recovery_percent ?? 0.6);
+    safeSetVal('addPosGapThreshold', currentConfig.add_pos_gap_threshold ?? 5.0);
+    safeSetVal('addPosProfitMultiplier', currentConfig.add_pos_profit_multiplier ?? 1.5);
+    safeSetVal('addPosSizePct', currentConfig.add_pos_size_pct ?? 30.0);
+    safeSetVal('addPosMaxCount', currentConfig.add_pos_max_count ?? 10);
+    safeSetVal('addPosGapOffset', currentConfig.add_pos_gap_offset ?? 0.0);
+    safeSetVal('addPosSizePctOffset', currentConfig.add_pos_size_pct_offset ?? 0.0);
 }
 
 // Helper to keep dashboard and modal in sync - Removed old PnL sync listeners as modal update is pending
 // TODO: Update modal with new fields if needed.
 
 async function saveConfig() {
+    const getVal = (id) => document.getElementById(id)?.value;
+    const getNum = (id, def = 0) => {
+        const val = parseFloat(getVal(id));
+        return isNaN(val) ? def : val;
+    };
+    const getInt = (id, def = 0) => {
+        const val = parseInt(getVal(id));
+        return isNaN(val) ? def : val;
+    };
+    const getCheck = (id) => !!document.getElementById(id)?.checked;
+
     const newConfig = {
-        okx_api_key: document.getElementById('okxApiKey').value,
-        okx_api_secret: document.getElementById('okxApiSecret').value,
-        okx_passphrase: document.getElementById('okxPassphrase').value,
-        okx_demo_api_key: document.getElementById('okxDemoApiKey').value,
-        okx_demo_api_secret: document.getElementById('okxDemoApiSecret').value,
-        okx_demo_api_passphrase: document.getElementById('okxDemoApiPassphrase').value,
-        dev_api_key: document.getElementById('devApiKey').value,
-        dev_api_secret: document.getElementById('devApiSecret').value,
-        dev_passphrase: document.getElementById('devPassphrase').value,
-        dev_demo_api_key: document.getElementById('devDemoApiKey').value,
-        dev_demo_api_secret: document.getElementById('devDemoApiSecret').value,
-        dev_demo_api_passphrase: document.getElementById('devDemoApiPassphrase').value,
-        use_developer_api: document.getElementById('useDeveloperApi').checked,
-        use_testnet: document.getElementById('useTestnet').checked,
-        symbol: document.getElementById('symbol').value,
-        short_safety_line_price: parseFloat(document.getElementById('shortSafetyLinePrice').value),
-        long_safety_line_price: parseFloat(document.getElementById('longSafetyLinePrice').value),
-        leverage: parseInt(document.getElementById('leverage').value),
-        max_allowed_used: parseFloat(document.getElementById('maxAllowedUsed').value),
-        entry_price_offset: parseFloat(document.getElementById('entryPriceOffset').value),
-        batch_offset: parseFloat(document.getElementById('batchOffset').value),
-        tp_price_offset: parseFloat(document.getElementById('tpPriceOffset').value),
-        sl_price_offset: parseFloat(document.getElementById('slPriceOffset').value),
-        loop_time_seconds: parseInt(document.getElementById('loopTimeSeconds').value),
-        rate_divisor: parseInt(document.getElementById('rateDivisor').value),
-        batch_size_per_loop: parseInt(document.getElementById('batchSizePerLoop').value),
-        min_order_amount: parseFloat(document.getElementById('minOrderAmount').value),
-        target_order_amount: parseFloat(document.getElementById('targetOrderAmount').value),
-        cancel_unfilled_seconds: parseInt(document.getElementById('cancelUnfilledSeconds').value),
-        cancel_on_tp_price_below_market: document.getElementById('cancelOnTpPriceBelowMarket').checked,
-        cancel_on_tp_price_above_market: document.getElementById('cancelOnTpPriceAboveMarket').checked,
-        cancel_on_entry_price_below_market: document.getElementById('cancelOnEntryPriceBelowMarket').checked,
-        cancel_on_entry_price_above_market: document.getElementById('cancelOnEntryPriceAboveMarket').checked,
-        trade_fee_percentage: parseFloat(document.getElementById('tradeFeePercentage').value),
+        okx_api_key: getVal('okxApiKey'),
+        okx_api_secret: getVal('okxApiSecret'),
+        okx_passphrase: getVal('okxPassphrase'),
+        okx_demo_api_key: getVal('okxDemoApiKey'),
+        okx_demo_api_secret: getVal('okxDemoApiSecret'),
+        okx_demo_api_passphrase: getVal('okxDemoApiPassphrase'),
+        dev_api_key: getVal('devApiKey'),
+        dev_api_secret: getVal('devApiSecret'),
+        dev_passphrase: getVal('devPassphrase'),
+        dev_demo_api_key: getVal('devDemoApiKey'),
+        dev_demo_api_secret: getVal('devDemoApiSecret'),
+        dev_demo_api_passphrase: getVal('devDemoApiPassphrase'),
+        use_developer_api: getCheck('useDeveloperApi'),
+        use_testnet: getCheck('useTestnet'),
+        symbol: getVal('symbol'),
+        short_safety_line_price: getNum('shortSafetyLinePrice'),
+        long_safety_line_price: getNum('longSafetyLinePrice'),
+        leverage: getInt('leverage'),
+        max_allowed_used: getNum('maxAllowedUsed'),
+        entry_price_offset: getNum('entryPriceOffset'),
+        batch_offset: getNum('batchOffset'),
+        tp_price_offset: getNum('tpPriceOffset'),
+        sl_price_offset: getNum('slPriceOffset'),
+        loop_time_seconds: getInt('loopTimeSeconds'),
+        rate_divisor: getInt('rateDivisor'),
+        batch_size_per_loop: getInt('batchSizePerLoop'),
+        min_order_amount: getNum('minOrderAmount'),
+        target_order_amount: getNum('targetOrderAmount'),
+        cancel_unfilled_seconds: getInt('cancelUnfilledSeconds'),
+        cancel_on_tp_price_below_market: getCheck('cancelOnTpPriceBelowMarket'),
+        cancel_on_tp_price_above_market: getCheck('cancelOnTpPriceAboveMarket'),
+        cancel_on_entry_price_below_market: getCheck('cancelOnEntryPriceBelowMarket'),
+        cancel_on_entry_price_above_market: getCheck('cancelOnEntryPriceAboveMarket'),
+        trade_fee_percentage: getNum('tradeFeePercentage', 0.07),
 
         // New fields
-        direction: document.getElementById('direction').value,
-        mode: document.getElementById('mode').value,
-        tp_amount: parseFloat(document.getElementById('tpAmount').value),
-        sl_amount: parseFloat(document.getElementById('slAmount').value),
-        trigger_price: document.getElementById('triggerPrice').value,
-        tp_mode: document.getElementById('tpMode').value,
-        tp_type: document.getElementById('tpType').value,
-        use_candlestick_conditions: document.getElementById('useCandlestickConditions').checked,
+        direction: getVal('direction'),
+        mode: getVal('mode'),
+        tp_amount: getNum('tpAmount'),
+        sl_amount: getNum('slAmount'),
+        trigger_price: getVal('triggerPrice'),
+        tp_mode: getVal('tpMode'),
+        tp_type: getVal('tpType'),
+        use_candlestick_conditions: getCheck('useCandlestickConditions'),
 
         // Candlestick conditions
-        use_chg_open_close: document.getElementById('useChgOpenClose').checked,
-        min_chg_open_close: parseFloat(document.getElementById('minChgOpenClose').value),
-        max_chg_open_close: parseFloat(document.getElementById('maxChgOpenClose').value),
-        use_chg_high_low: document.getElementById('useChgHighLow').checked,
-        min_chg_high_low: parseFloat(document.getElementById('minChgHighLow').value),
-        max_chg_high_low: parseFloat(document.getElementById('maxChgHighLow').value),
-        use_chg_high_close: document.getElementById('useChgHighClose').checked,
-        min_chg_high_close: parseFloat(document.getElementById('minChgHighClose').value),
-        max_chg_high_close: parseFloat(document.getElementById('maxChgHighClose').value),
-        add_pos_gap_threshold: parseFloat(document.getElementById('addPosGapThreshold').value),
-        add_pos_profit_multiplier: parseFloat(document.getElementById('addPosProfitMultiplier').value),
-        add_pos_step2_offset: parseFloat(document.getElementById('addPosStep2Offset').value),
-        add_pos_size_pct: parseFloat(document.getElementById('addPosSizePct').value),
-        add_pos_max_count: parseInt(document.getElementById('addPosMaxCount').value),
-        add_pos_recovery_percent: parseFloat(document.getElementById('addPosRecoveryPercent').value),
-        add_pos_gap_offset: parseFloat(document.getElementById('addPosGapOffset').value),
-        add_pos_size_pct_offset: parseFloat(document.getElementById('addPosSizePctOffset').value),
-        use_add_pos_profit_target: document.getElementById('useAddPosProfitTarget').checked,
+        use_chg_open_close: getCheck('useChgOpenClose'),
+        min_chg_open_close: getNum('minChgOpenClose'),
+        max_chg_open_close: getNum('maxChgOpenClose'),
+        use_chg_high_low: getCheck('useChgHighLow'),
+        min_chg_high_low: getNum('minChgHighLow'),
+        max_chg_high_low: getNum('maxChgHighLow'),
+        use_chg_high_close: getCheck('useChgHighClose'),
+        min_chg_high_close: getNum('minChgHighClose'),
+        max_chg_high_close: getNum('maxChgHighClose'),
+        add_pos_gap_threshold: getNum('addPosGapThreshold', 5.0),
+        add_pos_profit_multiplier: getNum('addPosProfitMultiplier', 1.5),
+        add_pos_step2_offset: getNum('addPosStep2Offset', 0.0),
+        add_pos_size_pct: getNum('addPosSizePct', 30.0),
+        add_pos_max_count: getInt('addPosMaxCount', 10),
+        add_pos_recovery_percent: getNum('addPosRecoveryPercent', 0.6),
+        add_pos_gap_offset: getNum('addPosGapOffset', 0.0),
+        add_pos_size_pct_offset: getNum('addPosSizePctOffset', 0.0),
+        use_add_pos_profit_target: getCheck('useAddPosProfitTarget'),
 
-        candlestick_timeframe: document.getElementById('candlestickTimeframe').value,
-        okx_pos_mode: document.getElementById('okxPosMode').value,
+        candlestick_timeframe: getVal('candlestickTimeframe'),
+        okx_pos_mode: getVal('okxPosMode'),
+
+        tp_close_limit: getCheck('tpCloseLimit'),
+        tp_close_same_as_trigger: getCheck('tpCloseSameAsTrigger'),
+        sl_close_limit: getCheck('slCloseLimit'),
+        sl_close_same_as_trigger: getCheck('slCloseSameAsTrigger'),
+        tp_close_price: getNum('tpClosePrice', 0),
+        sl_close_price: getNum('slClosePrice', 0),
 
         // PnL Auto-Cancel (New Dual Mode - Unified with Modal)
         // If modal inputs exist, use them. Otherwise use dashboard/current config.
-        use_pnl_auto_manual: document.getElementById('usePnlAutoCancelModal') ? document.getElementById('usePnlAutoCancelModal').checked : (document.getElementById('usePnlAutoManual') ? document.getElementById('usePnlAutoManual').checked : currentConfig.use_pnl_auto_manual),
-        pnl_auto_manual_threshold: document.getElementById('pnlAutoCancelThresholdModal') ? parseFloat(document.getElementById('pnlAutoCancelThresholdModal').value) : (document.getElementById('pnlAutoManualThreshold') ? parseFloat(document.getElementById('pnlAutoManualThreshold').value) : currentConfig.pnl_auto_manual_threshold),
-        use_pnl_auto_cal: document.getElementById('usePnlAutoCal') ? document.getElementById('usePnlAutoCal').checked : (currentConfig.use_pnl_auto_cal || false),
-        pnl_auto_cal_times: document.getElementById('pnlAutoCalTimes') ? parseFloat(document.getElementById('pnlAutoCalTimes').value) : (currentConfig.pnl_auto_cal_times || 4.0),
-        use_pnl_auto_cal_loss: document.getElementById('usePnlAutoCalLoss') ? document.getElementById('usePnlAutoCalLoss').checked : (currentConfig.use_pnl_auto_cal_loss || false),
-        pnl_auto_cal_loss_times: document.getElementById('pnlAutoCalLossTimes') ? parseFloat(document.getElementById('pnlAutoCalLossTimes').value) : (currentConfig.pnl_auto_cal_loss_times || 1.5),
+        use_pnl_auto_manual: document.getElementById('usePnlAutoCancelModal')?.checked ?? document.getElementById('usePnlAutoManual')?.checked ?? currentConfig.use_pnl_auto_manual,
+        pnl_auto_manual_threshold: parseFloat(document.getElementById('pnlAutoCancelThresholdModal')?.value ?? document.getElementById('pnlAutoManualThreshold')?.value ?? currentConfig.pnl_auto_manual_threshold),
+        use_pnl_auto_cal: document.getElementById('usePnlAutoCal')?.checked ?? currentConfig.use_pnl_auto_cal ?? false,
+        pnl_auto_cal_times: parseFloat(document.getElementById('pnlAutoCalTimes')?.value ?? currentConfig.pnl_auto_cal_times ?? 4.0),
+        use_pnl_auto_cal_loss: document.getElementById('usePnlAutoCalLoss')?.checked ?? currentConfig.use_pnl_auto_cal_loss ?? false,
+        pnl_auto_cal_loss_times: parseFloat(document.getElementById('pnlAutoCalLossTimes')?.value ?? currentConfig.pnl_auto_cal_loss_times ?? 1.5),
 
         // Auto-Cal Size (New)
-        use_size_auto_cal: document.getElementById('useSizeAutoCal') ? document.getElementById('useSizeAutoCal').checked : (currentConfig.use_size_auto_cal || false),
-        size_auto_cal_times: document.getElementById('sizeAutoCalTimes') ? parseFloat(document.getElementById('sizeAutoCalTimes').value) : (currentConfig.size_auto_cal_times || 2.0),
-        use_size_auto_cal_loss: document.getElementById('useSizeAutoCalLoss') ? document.getElementById('useSizeAutoCalLoss').checked : (currentConfig.use_size_auto_cal_loss || false),
-        size_auto_cal_loss_times: document.getElementById('sizeAutoCalLossTimes') ? parseFloat(document.getElementById('sizeAutoCalLossTimes').value) : (currentConfig.size_auto_cal_loss_times || 1.5),
+        use_size_auto_cal: document.getElementById('useSizeAutoCal')?.checked ?? currentConfig.use_size_auto_cal ?? false,
+        size_auto_cal_times: parseFloat(document.getElementById('sizeAutoCalTimes')?.value ?? currentConfig.size_auto_cal_times ?? 2.0),
+        use_size_auto_cal_loss: document.getElementById('useSizeAutoCalLoss')?.checked ?? currentConfig.use_size_auto_cal_loss ?? false,
+        size_auto_cal_loss_times: parseFloat(document.getElementById('sizeAutoCalLossTimes')?.value ?? currentConfig.size_auto_cal_loss_times ?? 1.5),
 
         // Auto-Cal Add Position (Split Mode)
-        use_add_pos_above_zero: document.getElementById('useAddPosAboveZero') ? document.getElementById('useAddPosAboveZero').checked : (currentConfig.use_add_pos_above_zero || false),
-        use_add_pos_profit_target: document.getElementById('useAddPosProfitTarget') ? document.getElementById('useAddPosProfitTarget').checked : (currentConfig.use_add_pos_profit_target || false),
-        add_pos_recovery_percent: document.getElementById('addPosRecoveryPercent') ? parseFloat(document.getElementById('addPosRecoveryPercent').value) : (currentConfig.add_pos_recovery_percent || 0.6),
-        add_pos_profit_multiplier: document.getElementById('addPosProfitMultiplier') ? parseFloat(document.getElementById('addPosProfitMultiplier').value) : (currentConfig.add_pos_profit_multiplier || 1.5)
+        use_add_pos_above_zero: document.getElementById('useAddPosAboveZero')?.checked ?? currentConfig.use_add_pos_above_zero ?? false,
+        use_add_pos_profit_target: document.getElementById('useAddPosProfitTarget')?.checked ?? currentConfig.use_add_pos_profit_target ?? false,
+        add_pos_recovery_percent: parseFloat(document.getElementById('addPosRecoveryPercent')?.value ?? currentConfig.add_pos_recovery_percent ?? 0.6),
+        add_pos_profit_multiplier: parseFloat(document.getElementById('addPosProfitMultiplier')?.value ?? currentConfig.add_pos_profit_multiplier ?? 1.5)
     };
 
     try {
@@ -1382,41 +1433,52 @@ async function saveConfig() {
 async function saveLiveConfigs() {
     if (!currentConfig) return;
 
+    const getVal = (id) => document.getElementById(id)?.value;
+    const getNum = (id, def = 0) => {
+        const val = parseFloat(getVal(id));
+        return isNaN(val) ? def : val;
+    };
+    const getInt = (id, def = 0) => {
+        const val = parseInt(getVal(id));
+        return isNaN(val) ? def : val;
+    };
+    const getCheck = (id) => !!document.getElementById(id)?.checked;
+
     const liveConfig = {
-        use_pnl_auto_manual: document.getElementById('usePnlAutoManual').checked,
-        pnl_auto_manual_threshold: parseFloat(document.getElementById('pnlAutoManualThreshold').value),
-        use_pnl_auto_cal: document.getElementById('usePnlAutoCal').checked,
-        pnl_auto_cal_times: parseFloat(document.getElementById('pnlAutoCalTimes').value),
-        use_pnl_auto_cal_loss: document.getElementById('usePnlAutoCalLoss').checked,
-        pnl_auto_cal_loss_times: parseFloat(document.getElementById('pnlAutoCalLossTimes').value),
+        use_pnl_auto_manual: getCheck('usePnlAutoManual'),
+        pnl_auto_manual_threshold: getNum('pnlAutoManualThreshold', 100.0),
+        use_pnl_auto_cal: getCheck('usePnlAutoCal'),
+        pnl_auto_cal_times: getNum('pnlAutoCalTimes', 4.0),
+        use_pnl_auto_cal_loss: getCheck('usePnlAutoCalLoss'),
+        pnl_auto_cal_loss_times: getNum('pnlAutoCalLossTimes', 1.5),
 
         // Auto-Cal Size (New)
-        use_size_auto_cal: document.getElementById('useSizeAutoCal').checked,
-        size_auto_cal_times: parseFloat(document.getElementById('sizeAutoCalTimes').value),
-        use_size_auto_cal_loss: document.getElementById('useSizeAutoCalLoss').checked,
-        size_auto_cal_loss_times: parseFloat(document.getElementById('sizeAutoCalLossTimes').value),
+        use_size_auto_cal: getCheck('useSizeAutoCal'),
+        size_auto_cal_times: getNum('sizeAutoCalTimes', 2.0),
+        use_size_auto_cal_loss: getCheck('useSizeAutoCalLoss'),
+        size_auto_cal_loss_times: getNum('sizeAutoCalLossTimes', 1.5),
 
-        trade_fee_percentage: parseFloat(document.getElementById('tradeFeePercentage').value),
+        trade_fee_percentage: getNum('tradeFeePercentage', 0.07),
 
         // Safety Lines (Add to live updates)
-        short_safety_line_price: parseFloat(document.getElementById('shortSafetyLinePrice').value),
-        long_safety_line_price: parseFloat(document.getElementById('longSafetyLinePrice').value),
+        short_safety_line_price: getNum('shortSafetyLinePrice'),
+        long_safety_line_price: getNum('longSafetyLinePrice'),
 
         // Auto-Add Margin
-        use_auto_margin: document.getElementById('useAutoMargin').checked,
-        auto_margin_offset: parseFloat(document.getElementById('autoMarginOffset').value),
+        use_auto_margin: getCheck('useAutoMargin'),
+        auto_margin_offset: getNum('autoMarginOffset', 30.0),
 
         // Auto-Cal Add Position (Split Mode)
-        use_add_pos_above_zero: document.getElementById('useAddPosAboveZero').checked,
-        use_add_pos_profit_target: document.getElementById('useAddPosProfitTarget').checked,
-        add_pos_recovery_percent: parseFloat(document.getElementById('addPosRecoveryPercent').value),
-        add_pos_profit_multiplier: parseFloat(document.getElementById('addPosProfitMultiplier').value),
-        add_pos_gap_threshold: parseFloat(document.getElementById('addPosGapThreshold').value),
-        add_pos_size_pct: parseFloat(document.getElementById('addPosSizePct').value),
-        add_pos_max_count: parseInt(document.getElementById('addPosMaxCount').value),
-        add_pos_step2_offset: parseFloat(document.getElementById('addPosStep2Offset').value),
-        add_pos_gap_offset: parseFloat(document.getElementById('addPosGapOffset').value),
-        add_pos_size_pct_offset: parseFloat(document.getElementById('addPosSizePctOffset').value)
+        use_add_pos_above_zero: getCheck('useAddPosAboveZero'),
+        use_add_pos_profit_target: getCheck('useAddPosProfitTarget'),
+        add_pos_recovery_percent: getNum('addPosRecoveryPercent', 0.6),
+        add_pos_profit_multiplier: getNum('addPosProfitMultiplier', 1.5),
+        add_pos_gap_threshold: getNum('addPosGapThreshold', 5.0),
+        add_pos_size_pct: getNum('addPosSizePct', 30.0),
+        add_pos_max_count: getInt('addPosMaxCount', 10),
+        add_pos_step2_offset: getNum('addPosStep2Offset', 0.0),
+        add_pos_gap_offset: getNum('addPosGapOffset', 0.0),
+        add_pos_size_pct_offset: getNum('addPosSizePctOffset', 0.0)
     };
 
     try {
@@ -1431,35 +1493,7 @@ async function saveLiveConfigs() {
         if (data.success) {
             showNotification('Auto-Exit settings saved', 'success');
             // Update local currentConfig but don't reload everything
-            currentConfig.use_pnl_auto_manual = liveConfig.use_pnl_auto_manual;
-            currentConfig.pnl_auto_manual_threshold = liveConfig.pnl_auto_manual_threshold;
-            currentConfig.use_pnl_auto_cal = liveConfig.use_pnl_auto_cal;
-            currentConfig.pnl_auto_cal_times = liveConfig.pnl_auto_cal_times;
-            currentConfig.use_pnl_auto_cal_loss = liveConfig.use_pnl_auto_cal_loss;
-            currentConfig.pnl_auto_cal_loss_times = liveConfig.pnl_auto_cal_loss_times;
-            currentConfig.trade_fee_percentage = liveConfig.trade_fee_percentage;
-
-            // Update Size Cal in memory
-            currentConfig.use_size_auto_cal = liveConfig.use_size_auto_cal;
-            currentConfig.size_auto_cal_times = liveConfig.size_auto_cal_times;
-            currentConfig.use_size_auto_cal_loss = liveConfig.use_size_auto_cal_loss;
-            currentConfig.size_auto_cal_loss_times = liveConfig.size_auto_cal_loss_times;
-
-            // Update Margin Cal in memory
-            currentConfig.use_auto_margin = liveConfig.use_auto_margin;
-            currentConfig.auto_margin_offset = liveConfig.auto_margin_offset;
-
-            // Update Add Pos in memory
-            currentConfig.use_add_pos_above_zero = liveConfig.use_add_pos_above_zero;
-            currentConfig.use_add_pos_profit_target = liveConfig.use_add_pos_profit_target;
-            currentConfig.add_pos_recovery_percent = liveConfig.add_pos_recovery_percent;
-            currentConfig.add_pos_profit_multiplier = liveConfig.add_pos_profit_multiplier;
-            currentConfig.add_pos_gap_threshold = liveConfig.add_pos_gap_threshold;
-            currentConfig.add_pos_size_pct = liveConfig.add_pos_size_pct;
-            currentConfig.add_pos_max_count = liveConfig.add_pos_max_count;
-            currentConfig.add_pos_step2_offset = liveConfig.add_pos_step2_offset;
-            currentConfig.add_pos_gap_offset = liveConfig.add_pos_gap_offset;
-            currentConfig.add_pos_size_pct_offset = liveConfig.add_pos_size_pct_offset;
+            Object.assign(currentConfig, liveConfig);
         } else {
             // Revert UI on error (e.g. bot running error)
             document.getElementById('usePnlAutoManual').checked = currentConfig.use_pnl_auto_manual;
