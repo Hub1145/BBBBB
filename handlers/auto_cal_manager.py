@@ -44,7 +44,8 @@ class AutoCalManager:
         # CLIENT FORMULA: Target UPL = Notional * fee_pct * multiplier
         surplus_target = fee_pct * mult
         gain_on_rec = rec - surplus_target
-        if gain_on_rec <= 0: gain_on_rec = 0.0001
+        # Robustness: Increase epsilon to prevent division by near-zero (Order Explosion prevention)
+        if gain_on_rec < 0.005: gain_on_rec = 0.005
 
         for side in ['long', 'short']:
             if self.engine.in_position[side]:
@@ -241,13 +242,22 @@ class AutoCalManager:
         sz_pct_notional = current_notional * pct
         final_notional = max(sz_pct_notional, target_notional)
 
-        # Safety Cap: Prevent order explosion. Cap recovery orders at 2x the current account equity.
+        # Safety Cap: Prevent order explosion.
+        # Cap recovery orders at 2x the 'Max Amount' (Notional Cap) or 2x Equity, whichever is stricter.
+        max_notional_cap = self.engine.max_amount_display
         equity = self.engine.total_equity
+
+        # We allow Auto-Cal to exceed the standard loop budget (Unrestricted design),
+        # but we enforce an absolute sanity ceiling.
+        sanity_ceiling = float('inf')
+        if max_notional_cap > 0:
+            sanity_ceiling = min(sanity_ceiling, max_notional_cap * 2.0)
         if equity > 0:
-            max_safe = equity * 2.0
-            if final_notional > max_safe:
-                self.engine.log(f"Auto-Add ({side.upper()}): Capping order notional {final_notional:.2f} to safety limit {max_safe:.2f} (2x Equity)", level="warning")
-                final_notional = max_safe
+            sanity_ceiling = min(sanity_ceiling, equity * 2.0)
+
+        if final_notional > sanity_ceiling:
+            self.engine.log(f"Auto-Add ({side.upper()}): Capping order notional {final_notional:.2f} to safety sanity ceiling {sanity_ceiling:.2f}", level="warning")
+            final_notional = sanity_ceiling
 
         # UNRESTRICTED Auto-Cal: Per user requirement, AutoCalManager ignores Max Allowed and Remaining Amount.
         # It uses funds directly from the balance to execute the recovery formula.

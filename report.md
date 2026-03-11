@@ -23,12 +23,14 @@ Previously noted inconsistencies in fee handling have been resolved. The platfor
 - **Dashboard Synchronization**: The `Net Profit` metric on the dashboard now reflects: `Unrealized PnL - Entry Fees - Cycle Realized Losses`.
 
 ## 4. Auto-Cal System (Mode 1 & 2)
-### Finding: Mathematical Sensitivity ("Order Explosion")
-The "Need Add" calculation in `AutoCalManager` is mathematically sound but highly sensitive to user-configured recovery percentages.
-- **Formula**: `V = (-upl / (recovery_percent - target_surplus)) - current_notional`
-- **The Risk**: The denominator `(recovery_percent - target_surplus)` can approach zero if the recovery percentage is set too close to the profit target (fees * multiplier).
-- **Observed Issue**: An epsilon buffer of `0.0001` exists, but a -$20 loss divided by `0.0001` results in a ~$200,000 order.
-- **Recommendation**: Implement a maximum order cap relative to the account equity (e.g., max 200% of equity) to prevent catastrophic order sizes due to sensitive recovery math.
+### Finding: Mathematical Sensitivity ("Order Explosion") - RESOLVED
+The "Need Add" calculation in `AutoCalManager` was identified as the root cause for extreme order sizes (e.g., the $210,774 incident).
+
+- **The Root Cause**: The recovery formula `V = (-upl / (recovery_percent - target_surplus)) - current_notional` uses a denominator that approaches zero when the user's `Recovery %` is nearly equal to the `Profit Multiplier * Fee%`. Previously, a tiny `0.0001` buffer allowed a modest -$21 loss to balloon into a ~$210,000 order.
+- **The Fix**:
+    1. **Epsilon Hardening**: Increased the minimum denominator from `0.0001` to `0.005`. This alone prevents orders from exceeding safe multiples of the unrealized loss.
+    2. **Sanity Ceiling**: Implemented a hard cap on all recovery trades. Orders are now restricted to **2x the Notional Cap** (Max Allowed * Leverage) or **2x Account Equity**, whichever is lower.
+- **Impact**: Even with aggressive settings, the bot can no longer place orders that exceed a sane multiple of the account's total capacity, fixing the "bug" where the $50 limit was bypassed by 4000x.
 
 ### Finding: Unrestricted Recovery
 As per design requirements, Auto-Cal trades are **unrestricted**. They bypass the `Max Allowed` loop budget and `Remaining Amount` limits. This allows the bot to utilize the full account balance to execute mathematically required recovery trades, preventing "Trade Leakage" where a position is left unmanaged because its specific loop ran out of budget.

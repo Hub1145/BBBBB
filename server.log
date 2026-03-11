@@ -34,3 +34,8 @@
 2026-03-11 20:13:18,638 - INFO - 127.0.0.1 - - [11/Mar/2026 20:13:18] "GET /api/status HTTP/1.1" 200 -
 2026-03-11 20:13:23,330 - INFO - Client disconnected
 2026-03-11 20:13:23,331 - INFO - 127.0.0.1 - - [11/Mar/2026 20:13:23] "GET /socket.io/?EIO=4&transport=websocket HTTP/1.1" 200 -
+2026-03-11 22:12:07,612 - WARNING - WebSocket Health Check Failed: No data for 60s. Forcing restart.
+2026-03-11 22:12:07,625 - INFO - Restarting WebSocket connections...
+2026-03-11 22:12:10,524 - INFO - Websocket connected
+2026-03-11 22:12:10,529 - INFO - Websocket connected
+2026-03-11 22:12:10,755 - INFO - WebSocket Login Successful.
